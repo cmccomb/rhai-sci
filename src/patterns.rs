@@ -1,3 +1,4 @@
+use crate::matrix::{RhaiMatrix, RhaiVector};
 use rhai::{Array, Dynamic, EvalAltResult, Position, FLOAT, INT};
 
 /// Matrix compatibility conditions
@@ -227,37 +228,31 @@ where
 }
 
 pub fn array_to_vec_int(arr: &mut Array) -> Vec<INT> {
-    arr.iter()
-        .map(|el| el.as_int().unwrap())
-        .collect::<Vec<INT>>()
+    RhaiVector::from_array(arr.clone())
+        .to_dvector()
+        .expect("Array elements must be numeric")
+        .iter()
+        .map(|v| *v as INT)
+        .collect()
 }
 
 pub fn array_to_vec_float(arr: &mut Array) -> Vec<FLOAT> {
-    arr.into_iter()
-        .map(|el| el.as_float().unwrap())
-        .collect::<Vec<FLOAT>>()
+    RhaiVector::from_array(arr.clone())
+        .to_dvector()
+        .expect("Array elements must be numeric")
+        .iter()
+        .copied()
+        .collect()
 }
 
 #[cfg(feature = "nalgebra")]
 pub fn omatrix_to_vec_dynamic(
     mat: nalgebralib::OMatrix<FLOAT, nalgebralib::Dyn, nalgebralib::Dyn>,
 ) -> Vec<Dynamic> {
-    let mut out = vec![];
-    for idx in 0..mat.shape().0 {
-        let mut new_row = vec![];
-        for jdx in 0..mat.shape().1 {
-            new_row.push(Dynamic::from_float(mat[(idx, jdx)]));
-        }
-        out.push(Dynamic::from_array(new_row));
-    }
-    out
+    RhaiMatrix::from_dmatrix(&mat).to_array()
 }
 
 #[cfg(feature = "nalgebra")]
 pub fn ovector_to_vec_dynamic(mat: nalgebralib::OVector<FLOAT, nalgebralib::Dyn>) -> Vec<Dynamic> {
-    let mut out = vec![];
-    for idx in 0..mat.shape().0 {
-        out.push(Dynamic::from_float(mat[idx]));
-    }
-    out
+    RhaiVector::from_dvector(&mat).to_array()
 }

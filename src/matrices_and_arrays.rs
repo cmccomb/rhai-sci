@@ -1,17 +1,15 @@
-use nalgebralib::{Dyn, OMatrix};
 use rhai::plugin::*;
 
 #[export_module]
 pub mod matrix_functions {
+    #[cfg(feature = "nalgebra")]
+    use crate::matrix::{RhaiMatrix, RhaiVector};
     use crate::{
         array_to_vec_float, if_int_convert_to_float_and_do, if_int_do_else_if_array_do, if_list_do,
         if_matrix_convert_to_vec_array_and_do,
     };
     #[cfg(feature = "nalgebra")]
-    use crate::{
-        if_matrices_and_compatible_convert_to_vec_array_and_do, if_matrix_do,
-        omatrix_to_vec_dynamic, ovector_to_vec_dynamic, FOIL,
-    };
+    use crate::{if_matrices_and_compatible_convert_to_vec_array_and_do, if_matrix_do, FOIL};
     #[cfg(feature = "nalgebra")]
     use nalgebralib::DMatrix;
     use rhai::{Array, Dynamic, EvalAltResult, Map, Position, FLOAT, INT};
@@ -40,26 +38,16 @@ pub mod matrix_functions {
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "inv", return_raw, pure)]
     pub fn invert_matrix(matrix: &mut Array) -> Result<Array, Box<EvalAltResult>> {
-        if_matrix_convert_to_vec_array_and_do(matrix, |matrix_as_vec| {
-            let dm = DMatrix::from_fn(matrix_as_vec.len(), matrix_as_vec[0].len(), |i, j| {
-                if matrix_as_vec[0][0].is_float() {
-                    matrix_as_vec[i][j].as_float().unwrap()
-                } else {
-                    matrix_as_vec[i][j].as_int().unwrap() as FLOAT
-                }
-            });
-
-            // Try to invert
-            let dm = dm.try_inverse();
-
-            dm.map(omatrix_to_vec_dynamic).ok_or_else(|| {
+        let dm = RhaiMatrix::from_array(matrix.clone()).to_dmatrix()?;
+        dm.try_inverse()
+            .map(|m| RhaiMatrix::from_dmatrix(&m).to_array())
+            .ok_or_else(|| {
                 EvalAltResult::ErrorArithmetic(
                     "Matrix cannot be inverted".to_string(),
                     Position::NONE,
                 )
                 .into()
             })
-        })
     }
 
     /// Calculate the eigenvalues and eigenvectors for a matrix. Specifically, the output is an
@@ -79,73 +67,58 @@ pub mod matrix_functions {
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "eigs", return_raw, pure)]
     pub fn matrix_eigs_alt(matrix: &mut Array) -> Result<Map, Box<EvalAltResult>> {
-        if_matrix_convert_to_vec_array_and_do(matrix, |matrix_as_vec| {
-            // Convert vec_array to omatrix
-            let mut dm = DMatrix::from_fn(matrix_as_vec.len(), matrix_as_vec[0].len(), |i, j| {
-                if matrix_as_vec[0][0].is_float() {
-                    matrix_as_vec[i][j].as_float().unwrap()
-                } else {
-                    matrix_as_vec[i][j].as_int().unwrap() as FLOAT
-                }
-            });
+        let dm = RhaiMatrix::from_array(matrix.clone()).to_dmatrix()?;
 
-            // Grab shape for later
-            let dms = dm.shape().1;
+        let dms = dm.shape().1;
 
-            // Get teh eigenvalues
-            let eigenvalues = dm.complex_eigenvalues();
+        let eigenvalues = dm.complex_eigenvalues();
 
-            // Iterate through eigenvalues to get eigenvectors
-            let mut imaginary_values = vec![Dynamic::from_float(1.0); 0];
-            let mut real_values = vec![Dynamic::from_float(1.0); 0];
-            let mut residuals = vec![Dynamic::from_float(1.0); 0];
-            let mut eigenvectors = DMatrix::from_element(dms, 0, 0.0);
-            for (idx, ev) in eigenvalues.iter().enumerate() {
-                // Eigenvalue components
-                imaginary_values.push(Dynamic::from_float(ev.im));
-                real_values.push(Dynamic::from_float(ev.re));
+        let mut imaginary_values = vec![Dynamic::from_float(1.0); 0];
+        let mut real_values = vec![Dynamic::from_float(1.0); 0];
+        let mut residuals = vec![Dynamic::from_float(1.0); 0];
+        let mut eigenvectors = DMatrix::from_element(dms, 0, 0.0);
+        for (idx, ev) in eigenvalues.iter().enumerate() {
+            imaginary_values.push(Dynamic::from_float(ev.im));
+            real_values.push(Dynamic::from_float(ev.re));
 
-                // Get eigenvector
-                let mut A = dm.clone() - DMatrix::from_diagonal_element(dms, dms, ev.re);
-                A = A.insert_column(0, 0.0);
-                A = A.insert_row(0, 0.0);
-                A[(0, idx + 1)] = 1.0;
-                let mut b = DMatrix::from_element(dms + 1, 1, 0.0);
-                b[(0, 0)] = 1.0;
-                let eigenvector = A
-                    .svd(true, true)
-                    .solve(&b, 1e-10)
-                    .unwrap()
-                    .remove_rows(0, 1)
-                    .normalize();
+            let mut a = dm.clone() - DMatrix::from_diagonal_element(dms, dms, ev.re);
+            a = a.insert_column(0, 0.0);
+            a = a.insert_row(0, 0.0);
+            a[(0, idx + 1)] = 1.0;
+            let mut b = DMatrix::from_element(dms + 1, 1, 0.0);
+            b[(0, 0)] = 1.0;
+            let eigenvector = a
+                .svd(true, true)
+                .solve(&b, 1e-10)
+                .unwrap()
+                .remove_rows(0, 1)
+                .normalize();
 
-                // Verify solution
-                residuals.push(Dynamic::from_float(
-                    (dm.clone() * eigenvector.clone() - ev.re * eigenvector.clone()).amax(),
-                ));
+            residuals.push(Dynamic::from_float(
+                (dm.clone() * eigenvector.clone() - ev.re * eigenvector.clone()).amax(),
+            ));
 
-                eigenvectors.extend(eigenvector.column_iter());
-            }
+            eigenvectors.extend(eigenvector.column_iter());
+        }
 
-            let mut result = BTreeMap::new();
-            let mut vid = smartstring::SmartString::new();
-            vid.push_str("eigenvectors");
-            result.insert(
-                vid,
-                Dynamic::from_array(omatrix_to_vec_dynamic(eigenvectors)),
-            );
-            let mut did = smartstring::SmartString::new();
-            did.push_str("real_eigenvalues");
-            result.insert(did, Dynamic::from_array(real_values));
-            let mut eid = smartstring::SmartString::new();
-            eid.push_str("imaginary_eigenvalues");
-            result.insert(eid, Dynamic::from_array(imaginary_values));
-            let mut rid = smartstring::SmartString::new();
-            rid.push_str("residuals");
-            result.insert(rid, Dynamic::from_array(residuals));
+        let mut result = BTreeMap::new();
+        let mut vid = smartstring::SmartString::new();
+        vid.push_str("eigenvectors");
+        result.insert(
+            vid,
+            Dynamic::from_array(RhaiMatrix::from_dmatrix(&eigenvectors).to_array()),
+        );
+        let mut did = smartstring::SmartString::new();
+        did.push_str("real_eigenvalues");
+        result.insert(did, Dynamic::from_array(real_values));
+        let mut eid = smartstring::SmartString::new();
+        eid.push_str("imaginary_eigenvalues");
+        result.insert(eid, Dynamic::from_array(imaginary_values));
+        let mut rid = smartstring::SmartString::new();
+        rid.push_str("residuals");
+        result.insert(rid, Dynamic::from_array(residuals));
 
-            Ok(result)
-        })
+        Ok(result)
     }
 
     /// Calculates the singular value decomposition of a matrix
@@ -157,54 +130,50 @@ pub mod matrix_functions {
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "svd", return_raw, pure)]
     pub fn svd_decomp(matrix: &mut Array) -> Result<Map, Box<EvalAltResult>> {
-        if_matrix_convert_to_vec_array_and_do(matrix, |matrix_as_vec| {
-            let dm = DMatrix::from_fn(matrix_as_vec.len(), matrix_as_vec[0].len(), |i, j| {
-                if matrix_as_vec[0][0].is::<FLOAT>() {
-                    matrix_as_vec[i][j].as_float().unwrap()
-                } else {
-                    matrix_as_vec[i][j].as_int().unwrap() as FLOAT
-                }
-            });
+        let dm = RhaiMatrix::from_array(matrix.clone()).to_dmatrix()?;
+        let svd = nalgebralib::linalg::SVD::new(dm, true, true);
 
-            // Try ot invert
-            let svd = nalgebralib::linalg::SVD::new(dm, true, true);
+        let mut result = BTreeMap::new();
+        let mut u_key = smartstring::SmartString::new();
+        u_key.push_str("u");
+        match svd.u {
+            Some(u) => result.insert(
+                u_key,
+                Dynamic::from_array(RhaiMatrix::from_dmatrix(&u).to_array()),
+            ),
+            None => {
+                return Err(EvalAltResult::ErrorArithmetic(
+                    "SVD decomposition cannot be computed for this matrix.".to_string(),
+                    Position::NONE,
+                )
+                .into());
+            }
+        };
 
-            let mut result = BTreeMap::new();
-            let mut uid = smartstring::SmartString::new();
-            uid.push_str("u");
-            match svd.u {
-                Some(u) => result.insert(uid, Dynamic::from_array(omatrix_to_vec_dynamic(u))),
-                None => {
-                    return Err(EvalAltResult::ErrorArithmetic(
-                        format!("SVD decomposition cannot be computed for this matrix."),
-                        Position::NONE,
-                    )
-                    .into());
-                }
-            };
+        let mut v_key = smartstring::SmartString::new();
+        v_key.push_str("v");
+        match svd.v_t {
+            Some(v) => result.insert(
+                v_key,
+                Dynamic::from_array(RhaiMatrix::from_dmatrix(&v).to_array()),
+            ),
+            None => {
+                return Err(EvalAltResult::ErrorArithmetic(
+                    "SVD decomposition cannot be computed for this matrix.".to_string(),
+                    Position::NONE,
+                )
+                .into());
+            }
+        };
 
-            let mut vid = smartstring::SmartString::new();
-            vid.push_str("v");
-            match svd.v_t {
-                Some(v) => result.insert(vid, Dynamic::from_array(omatrix_to_vec_dynamic(v))),
-                None => {
-                    return Err(EvalAltResult::ErrorArithmetic(
-                        format!("SVD decomposition cannot be computed for this matrix."),
-                        Position::NONE,
-                    )
-                    .into());
-                }
-            };
+        let mut s_key = smartstring::SmartString::new();
+        s_key.push_str("s");
+        result.insert(
+            s_key,
+            Dynamic::from_array(RhaiVector::from_dvector(&svd.singular_values).to_array()),
+        );
 
-            let mut sid = smartstring::SmartString::new();
-            sid.push_str("s");
-            result.insert(
-                sid,
-                Dynamic::from_array(ovector_to_vec_dynamic(svd.singular_values)),
-            );
-
-            Ok(result)
-        })
+        Ok(result)
     }
 
     /// Calculates the QR decomposition of a matrix
@@ -216,29 +185,25 @@ pub mod matrix_functions {
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "qr", return_raw, pure)]
     pub fn qr_decomp(matrix: &mut Array) -> Result<Map, Box<EvalAltResult>> {
-        if_matrix_convert_to_vec_array_and_do(matrix, |matrix_as_vec| {
-            let dm = DMatrix::from_fn(matrix_as_vec.len(), matrix_as_vec[0].len(), |i, j| {
-                if matrix_as_vec[0][0].is::<FLOAT>() {
-                    matrix_as_vec[i][j].as_float().unwrap()
-                } else {
-                    matrix_as_vec[i][j].as_int().unwrap() as FLOAT
-                }
-            });
+        let dm = RhaiMatrix::from_array(matrix.clone()).to_dmatrix()?;
+        let qr = nalgebralib::linalg::QR::new(dm);
 
-            // Try ot invert
-            let qr = nalgebralib::linalg::QR::new(dm);
+        let mut result = BTreeMap::new();
+        let mut qid = smartstring::SmartString::new();
+        qid.push_str("q");
+        result.insert(
+            qid,
+            Dynamic::from_array(RhaiMatrix::from_dmatrix(&qr.q()).to_array()),
+        );
 
-            let mut result = BTreeMap::new();
-            let mut qid = smartstring::SmartString::new();
-            qid.push_str("q");
-            result.insert(qid, Dynamic::from_array(omatrix_to_vec_dynamic(qr.q())));
+        let mut rid = smartstring::SmartString::new();
+        rid.push_str("r");
+        result.insert(
+            rid,
+            Dynamic::from_array(RhaiMatrix::from_dmatrix(&qr.r()).to_array()),
+        );
 
-            let mut rid = smartstring::SmartString::new();
-            rid.push_str("r");
-            result.insert(rid, Dynamic::from_array(omatrix_to_vec_dynamic(qr.r())));
-
-            Ok(result)
-        })
+        Ok(result)
     }
 
     /// Calculates the QR decomposition of a matrix
@@ -250,29 +215,25 @@ pub mod matrix_functions {
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "hessenberg", return_raw, pure)]
     pub fn hessenberg(matrix: &mut Array) -> Result<Map, Box<EvalAltResult>> {
-        if_matrix_convert_to_vec_array_and_do(matrix, |matrix_as_vec| {
-            let dm = DMatrix::from_fn(matrix_as_vec.len(), matrix_as_vec[0].len(), |i, j| {
-                if matrix_as_vec[0][0].is::<FLOAT>() {
-                    matrix_as_vec[i][j].as_float().unwrap()
-                } else {
-                    matrix_as_vec[i][j].as_int().unwrap() as FLOAT
-                }
-            });
+        let dm = RhaiMatrix::from_array(matrix.clone()).to_dmatrix()?;
+        let h = nalgebralib::linalg::Hessenberg::new(dm);
 
-            // Try ot invert
-            let h = nalgebralib::linalg::Hessenberg::new(dm);
+        let mut result = BTreeMap::new();
+        let mut hid = smartstring::SmartString::new();
+        hid.push_str("h");
+        result.insert(
+            hid,
+            Dynamic::from_array(RhaiMatrix::from_dmatrix(&h.h()).to_array()),
+        );
 
-            let mut result = BTreeMap::new();
-            let mut hid = smartstring::SmartString::new();
-            hid.push_str("h");
-            result.insert(hid, Dynamic::from_array(omatrix_to_vec_dynamic(h.h())));
+        let mut qid = smartstring::SmartString::new();
+        qid.push_str("q");
+        result.insert(
+            qid,
+            Dynamic::from_array(RhaiMatrix::from_dmatrix(&h.q()).to_array()),
+        );
 
-            let mut qid = smartstring::SmartString::new();
-            qid.push_str("q");
-            result.insert(qid, Dynamic::from_array(omatrix_to_vec_dynamic(h.q())));
-
-            Ok(result)
-        })
+        Ok(result)
     }
 
     /// Transposes a matrix.
@@ -922,37 +883,18 @@ pub mod matrix_functions {
             &mut matrix1.clone(),
             &mut matrix2.clone(),
             |matrix_as_vec1, matrix_as_vec2| {
-                let dm1 =
-                    DMatrix::from_fn(matrix_as_vec1.len(), matrix_as_vec1[0].len(), |i, j| {
-                        if matrix_as_vec1[0][0].is_float() {
-                            matrix_as_vec1[i][j].as_float().unwrap()
-                        } else {
-                            matrix_as_vec1[i][j].as_int().unwrap() as FLOAT
-                        }
-                    });
-
-                let dm2 =
-                    DMatrix::from_fn(matrix_as_vec2.len(), matrix_as_vec2[0].len(), |i, j| {
-                        if matrix_as_vec2[0][0].is_float() {
-                            matrix_as_vec2[i][j].as_float().unwrap()
-                        } else {
-                            matrix_as_vec2[i][j].as_int().unwrap() as FLOAT
-                        }
-                    });
-
-                // Try to multiply
+                let arr1: Array = matrix_as_vec1
+                    .into_iter()
+                    .map(Dynamic::from_array)
+                    .collect();
+                let arr2: Array = matrix_as_vec2
+                    .into_iter()
+                    .map(Dynamic::from_array)
+                    .collect();
+                let dm1 = RhaiMatrix::from_array(arr1).to_dmatrix()?;
+                let dm2 = RhaiMatrix::from_array(arr2).to_dmatrix()?;
                 let mat = dm1 * dm2;
-
-                // Turn into Array
-                let mut out = vec![];
-                for idx in 0..mat.shape().0 {
-                    let mut new_row = vec![];
-                    for jdx in 0..mat.shape().1 {
-                        new_row.push(Dynamic::from_float(mat[(idx, jdx)]));
-                    }
-                    out.push(Dynamic::from_array(new_row));
-                }
-                Ok(out)
+                Ok(RhaiMatrix::from_dmatrix(&mat).to_array())
             },
         )
     }
@@ -972,25 +914,17 @@ pub mod matrix_functions {
             &mut matrix1.clone(),
             &mut matrix2.clone(),
             |matrix_as_vec1, matrix_as_vec2| {
-                let dm1 =
-                    DMatrix::from_fn(matrix_as_vec1.len(), matrix_as_vec1[0].len(), |i, j| {
-                        if matrix_as_vec1[0][0].is_float() {
-                            matrix_as_vec1[i][j].as_float().unwrap()
-                        } else {
-                            matrix_as_vec1[i][j].as_int().unwrap() as FLOAT
-                        }
-                    });
+                let arr1: Array = matrix_as_vec1
+                    .into_iter()
+                    .map(Dynamic::from_array)
+                    .collect();
+                let arr2: Array = matrix_as_vec2
+                    .into_iter()
+                    .map(Dynamic::from_array)
+                    .collect();
+                let dm1 = RhaiMatrix::from_array(arr1).to_dmatrix()?;
+                let dm2 = RhaiMatrix::from_array(arr2).to_dmatrix()?;
 
-                let dm2 =
-                    DMatrix::from_fn(matrix_as_vec2.len(), matrix_as_vec2[0].len(), |i, j| {
-                        if matrix_as_vec2[0][0].is_float() {
-                            matrix_as_vec2[i][j].as_float().unwrap()
-                        } else {
-                            matrix_as_vec2[i][j].as_int().unwrap() as FLOAT
-                        }
-                    });
-
-                // Try to multiple
                 let w0 = dm1.shape().1;
                 let w = dm1.shape().1 + dm2.shape().1;
                 let h = dm1.shape().0;
@@ -1001,17 +935,7 @@ pub mod matrix_functions {
                         dm1[(i, j)]
                     }
                 });
-
-                // Turn into Array
-                let mut out = vec![];
-                for idx in 0..h {
-                    let mut new_row = vec![];
-                    for jdx in 0..w {
-                        new_row.push(Dynamic::from_float(mat[(idx, jdx)]));
-                    }
-                    out.push(Dynamic::from_array(new_row));
-                }
-                Ok(out)
+                Ok(RhaiMatrix::from_dmatrix(&mat).to_array())
             },
         )
     }
@@ -1031,25 +955,17 @@ pub mod matrix_functions {
             &mut matrix1.clone(),
             &mut matrix2.clone(),
             |matrix_as_vec1, matrix_as_vec2| {
-                let dm1 =
-                    DMatrix::from_fn(matrix_as_vec1.len(), matrix_as_vec1[0].len(), |i, j| {
-                        if matrix_as_vec1[0][0].is_float() {
-                            matrix_as_vec1[i][j].as_float().unwrap()
-                        } else {
-                            matrix_as_vec1[i][j].as_int().unwrap() as FLOAT
-                        }
-                    });
+                let arr1: Array = matrix_as_vec1
+                    .into_iter()
+                    .map(Dynamic::from_array)
+                    .collect();
+                let arr2: Array = matrix_as_vec2
+                    .into_iter()
+                    .map(Dynamic::from_array)
+                    .collect();
+                let dm1 = RhaiMatrix::from_array(arr1).to_dmatrix()?;
+                let dm2 = RhaiMatrix::from_array(arr2).to_dmatrix()?;
 
-                let dm2 =
-                    DMatrix::from_fn(matrix_as_vec2.len(), matrix_as_vec2[0].len(), |i, j| {
-                        if matrix_as_vec2[0][0].is_float() {
-                            matrix_as_vec2[i][j].as_float().unwrap()
-                        } else {
-                            matrix_as_vec2[i][j].as_int().unwrap() as FLOAT
-                        }
-                    });
-
-                // Try to multiple
                 let h0 = dm1.shape().0;
                 let w = dm1.shape().1;
                 let h = dm1.shape().0 + dm2.shape().0;
@@ -1060,17 +976,7 @@ pub mod matrix_functions {
                         dm1[(i, j)]
                     }
                 });
-
-                // Turn into Array
-                let mut out = vec![];
-                for idx in 0..h {
-                    let mut new_row = vec![];
-                    for jdx in 0..w {
-                        new_row.push(Dynamic::from_float(mat[(idx, jdx)]));
-                    }
-                    out.push(Dynamic::from_array(new_row));
-                }
-                Ok(out)
+                Ok(RhaiMatrix::from_dmatrix(&mat).to_array())
             },
         )
     }
