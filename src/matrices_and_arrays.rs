@@ -240,10 +240,10 @@ pub mod matrix_functions {
     /// ```typescript
     /// let row = [[1, 2, 3, 4]];
     /// let column = transpose(row);
-    /// assert_eq(column, [[1],
-    ///                    [2],
-    ///                    [3],
-    ///                    [4]]);
+    /// assert_eq(column, [[1.0],
+    ///                    [2.0],
+    ///                    [3.0],
+    ///                    [4.0]]);
     /// ```
     /// ```typescript
     /// let matrix = transpose(eye(3));
@@ -256,6 +256,12 @@ pub mod matrix_functions {
             .or_else(|| matrix.as_column())
             .unwrap_or(matrix);
         oriented.transpose()
+    }
+
+    /// Transpose an array by first converting it to a [`RhaiMatrix`].
+    #[rhai_fn(name = "transpose", return_raw)]
+    pub fn transpose_from_array(matrix: Array) -> Result<Array, Box<EvalAltResult>> {
+        transpose(RhaiMatrix::from_array(matrix)).map(RhaiMatrix::to_array)
     }
 
     /// Returns an array indicating the size of the matrix along each dimension, passed by reference.
@@ -335,11 +341,10 @@ pub mod matrix_functions {
         use polars::prelude::{CsvReadOptions, DataType, SerReader};
         use rhai::{Array, Dynamic, EvalAltResult, ImmutableString, FLOAT};
 
-        /// Reads a numeric csv file from a url
+        /// Reads a numeric CSV file from the filesystem
         /// ```typescript
-        /// let url = "https://raw.githubusercontent.com/plotly/datasets/master/diabetes.csv";
-        /// let x = read_matrix(url);
-        /// assert_eq(size(x), [768, 9]);
+        /// let x = read_matrix("tests/fixtures/sample_matrix.csv");
+        /// assert_eq(x, [[1.0, 2.0], [3.0, 4.0]]);
         /// ```
         #[rhai_fn(name = "read_matrix", return_raw)]
         pub fn read_matrix(file_path: ImmutableString) -> Result<Array, Box<EvalAltResult>> {
@@ -910,6 +915,16 @@ pub mod matrix_functions {
         left.concat_h(&right)
     }
 
+    #[cfg(feature = "nalgebra")]
+    #[rhai_fn(name = "horzcat", return_raw)]
+    pub fn horzcat_from_array(matrix1: Array, matrix2: Array) -> Result<Array, Box<EvalAltResult>> {
+        horzcat(
+            RhaiMatrix::from_array(matrix1),
+            RhaiMatrix::from_array(matrix2),
+        )
+        .map(RhaiMatrix::to_array)
+    }
+
     /// Concatenates two array vertically.
     /// ```typescript
     /// let arr1 = eye(3);
@@ -926,6 +941,16 @@ pub mod matrix_functions {
         let top = matrix1.as_column().unwrap_or(matrix1);
         let bottom = matrix2.as_column().unwrap_or(matrix2);
         top.concat_v(&bottom)
+    }
+
+    #[cfg(feature = "nalgebra")]
+    #[rhai_fn(name = "vertcat", return_raw)]
+    pub fn vertcat_from_array(matrix1: Array, matrix2: Array) -> Result<Array, Box<EvalAltResult>> {
+        vertcat(
+            RhaiMatrix::from_array(matrix1),
+            RhaiMatrix::from_array(matrix2),
+        )
+        .map(RhaiMatrix::to_array)
     }
 
     /// This function can be used in two distinct ways.
@@ -1008,6 +1033,12 @@ pub mod matrix_functions {
         Ok(new_matrix)
     }
 
+    #[cfg(feature = "nalgebra")]
+    #[rhai_fn(name = "repmat", return_raw)]
+    pub fn repmat_from_array(matrix: Array, nx: INT, ny: INT) -> Result<Array, Box<EvalAltResult>> {
+        repmat(RhaiMatrix::from_array(matrix), nx, ny).map(RhaiMatrix::to_array)
+    }
+
     /// Returns an object map containing 2-D grid coordinates based on the uni-axial coordinates
     /// contained in arguments x and y.
     /// ```typescript
@@ -1016,8 +1047,8 @@ pub mod matrix_functions {
     /// let g = meshgrid(x, y);
     /// assert_eq(g, #{"x": [[1, 2],
     ///                      [1, 2]],
-    ///                "y": [[3, 3],
-    ///                      [4, 4]]});
+    ///                "y": [[3.0, 3.0],
+    ///                      [4.0, 4.0]]});
     /// ```
     #[rhai_fn(name = "meshgrid", return_raw)]
     pub fn meshgrid(x: Array, y: Array) -> Result<Map, Box<EvalAltResult>> {
