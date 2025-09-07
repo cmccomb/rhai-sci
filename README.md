@@ -43,6 +43,20 @@ engine.register_global_module(SciPackage::new().as_shared_module());
 let value = engine.eval::<INT>("argmin([43, 42, -500])").unwrap();
 ```
 
+## Matrix helpers
+
+`rhai-sci` provides constructors for row and column vectors and utilities to reorient
+`1×N` and `N×1` matrices:
+
+```rust
+use rhai::{Array, Dynamic};
+use rhai_sci::matrix::RhaiMatrix;
+
+let data: Array = vec![Dynamic::from_int(1), Dynamic::from_int(2)];
+let row = RhaiMatrix::row_vector(data.clone());
+let column = row.as_column().unwrap();
+```
+
 # Features
 
 | Feature    | Default  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

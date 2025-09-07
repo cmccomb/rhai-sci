@@ -2,6 +2,7 @@ use rhai::plugin::*;
 
 #[export_module]
 pub mod validation_functions {
+    use crate::matrix::RhaiMatrix;
     use rhai::{Array, Dynamic};
 
     /// Tests whether the input in a simple list array
@@ -113,9 +114,10 @@ pub mod validation_functions {
     /// ```
     #[rhai_fn(name = "is_row_vector", pure)]
     pub fn is_row_vector(arr: &mut Array) -> bool {
-        let s = crate::matrix_functions::matrix_size_by_reference(arr);
-        if s.len() == 2 && s[0].as_int().unwrap() == 1 {
-            true
+        let matrix = RhaiMatrix::from_array(arr.clone());
+        if matrix.as_row().is_some() {
+            let s = crate::matrix_functions::matrix_size_by_reference(arr);
+            s.len() == 2 && s[0].as_int().unwrap() == 1_i64
         } else {
             false
         }
@@ -132,9 +134,10 @@ pub mod validation_functions {
     /// ```
     #[rhai_fn(name = "is_column_vector", pure)]
     pub fn is_column_vector(arr: &mut Array) -> bool {
-        let s = crate::matrix_functions::matrix_size_by_reference(arr);
-        if s.len() == 2 && s[1].as_int().unwrap() == 1 {
-            true
+        let matrix = RhaiMatrix::from_array(arr.clone());
+        if matrix.as_column().is_some() {
+            let s = crate::matrix_functions::matrix_size_by_reference(arr);
+            s.len() == 2 && s[1].as_int().unwrap() == 1_i64
         } else {
             false
         }
