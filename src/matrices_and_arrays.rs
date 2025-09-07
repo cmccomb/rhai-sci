@@ -9,7 +9,7 @@ pub mod matrix_functions {
         if_matrix_convert_to_vec_array_and_do,
     };
     #[cfg(feature = "nalgebra")]
-    use crate::{if_matrices_and_compatible_convert_to_vec_array_and_do, if_matrix_do, FOIL};
+    use crate::{if_matrices_and_compatible_convert_to_vec_array_and_do, FOIL};
     #[cfg(feature = "nalgebra")]
     use nalgebralib::DMatrix;
     use rhai::{Array, Dynamic, EvalAltResult, Map, Position, FLOAT, INT};
@@ -249,20 +249,13 @@ pub mod matrix_functions {
     /// let matrix = transpose(eye(3));
     /// assert_eq(matrix, eye(3));
     /// ```
-    #[rhai_fn(name = "transpose", pure, return_raw)]
-    pub fn transpose(matrix: &mut Array) -> Result<Array, Box<EvalAltResult>> {
-        if_matrix_convert_to_vec_array_and_do(matrix, |matrix_as_vec| {
-            // Turn into Array
-            let mut out = vec![];
-            for idx in 0..matrix_as_vec[0].len() {
-                let mut new_row = vec![];
-                for jdx in 0..matrix_as_vec.len() {
-                    new_row.push(matrix_as_vec[jdx][idx].clone());
-                }
-                out.push(Dynamic::from_array(new_row));
-            }
-            Ok(out)
-        })
+    #[rhai_fn(name = "transpose", return_raw)]
+    pub fn transpose(matrix: RhaiMatrix) -> Result<RhaiMatrix, Box<EvalAltResult>> {
+        let oriented = matrix
+            .as_row()
+            .or_else(|| matrix.as_column())
+            .unwrap_or(matrix);
+        oriented.transpose()
     }
 
     /// Returns an array indicating the size of the matrix along each dimension, passed by reference.
@@ -908,36 +901,13 @@ pub mod matrix_functions {
     /// ```
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "horzcat", return_raw)]
-    pub fn horzcat(matrix1: Array, matrix2: Array) -> Result<Array, Box<EvalAltResult>> {
-        if_matrices_and_compatible_convert_to_vec_array_and_do(
-            FOIL::First,
-            &mut matrix1.clone(),
-            &mut matrix2.clone(),
-            |matrix_as_vec1, matrix_as_vec2| {
-                let arr1: Array = matrix_as_vec1
-                    .into_iter()
-                    .map(Dynamic::from_array)
-                    .collect();
-                let arr2: Array = matrix_as_vec2
-                    .into_iter()
-                    .map(Dynamic::from_array)
-                    .collect();
-                let dm1 = RhaiMatrix::from_array(arr1).to_dmatrix()?;
-                let dm2 = RhaiMatrix::from_array(arr2).to_dmatrix()?;
-
-                let w0 = dm1.shape().1;
-                let w = dm1.shape().1 + dm2.shape().1;
-                let h = dm1.shape().0;
-                let mat = DMatrix::from_fn(h, w, |i, j| {
-                    if j >= w0 {
-                        dm2[(i, j - w0)]
-                    } else {
-                        dm1[(i, j)]
-                    }
-                });
-                Ok(RhaiMatrix::from_dmatrix(&mat).to_array())
-            },
-        )
+    pub fn horzcat(
+        matrix1: RhaiMatrix,
+        matrix2: RhaiMatrix,
+    ) -> Result<RhaiMatrix, Box<EvalAltResult>> {
+        let left = matrix1.as_row().unwrap_or(matrix1);
+        let right = matrix2.as_row().unwrap_or(matrix2);
+        left.concat_h(&right)
     }
 
     /// Concatenates two array vertically.
@@ -949,36 +919,13 @@ pub mod matrix_functions {
     /// ```
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "vertcat", return_raw)]
-    pub fn vertcat(matrix1: Array, matrix2: Array) -> Result<Array, Box<EvalAltResult>> {
-        if_matrices_and_compatible_convert_to_vec_array_and_do(
-            FOIL::Last,
-            &mut matrix1.clone(),
-            &mut matrix2.clone(),
-            |matrix_as_vec1, matrix_as_vec2| {
-                let arr1: Array = matrix_as_vec1
-                    .into_iter()
-                    .map(Dynamic::from_array)
-                    .collect();
-                let arr2: Array = matrix_as_vec2
-                    .into_iter()
-                    .map(Dynamic::from_array)
-                    .collect();
-                let dm1 = RhaiMatrix::from_array(arr1).to_dmatrix()?;
-                let dm2 = RhaiMatrix::from_array(arr2).to_dmatrix()?;
-
-                let h0 = dm1.shape().0;
-                let w = dm1.shape().1;
-                let h = dm1.shape().0 + dm2.shape().0;
-                let mat = DMatrix::from_fn(h, w, |i, j| {
-                    if i >= h0 {
-                        dm2[(i - h0, j)]
-                    } else {
-                        dm1[(i, j)]
-                    }
-                });
-                Ok(RhaiMatrix::from_dmatrix(&mat).to_array())
-            },
-        )
+    pub fn vertcat(
+        matrix1: RhaiMatrix,
+        matrix2: RhaiMatrix,
+    ) -> Result<RhaiMatrix, Box<EvalAltResult>> {
+        let top = matrix1.as_column().unwrap_or(matrix1);
+        let bottom = matrix2.as_column().unwrap_or(matrix2);
+        top.concat_v(&bottom)
     }
 
     /// This function can be used in two distinct ways.
@@ -1049,18 +996,16 @@ pub mod matrix_functions {
     /// ```
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "repmat", return_raw)]
-    pub fn repmat(matrix: &mut Array, nx: INT, ny: INT) -> Result<Array, Box<EvalAltResult>> {
-        if_matrix_do(matrix, |matrix| {
-            let mut row_matrix = matrix.clone();
-            for _ in 1..ny {
-                row_matrix = horzcat(row_matrix, matrix.clone())?;
-            }
-            let mut new_matrix = row_matrix.clone();
-            for _ in 1..nx {
-                new_matrix = vertcat(new_matrix, row_matrix.clone())?;
-            }
-            Ok(new_matrix)
-        })
+    pub fn repmat(matrix: RhaiMatrix, nx: INT, ny: INT) -> Result<RhaiMatrix, Box<EvalAltResult>> {
+        let mut row_matrix = matrix.clone();
+        for _ in 1..ny {
+            row_matrix = horzcat(row_matrix, matrix.clone())?;
+        }
+        let mut new_matrix = row_matrix.clone();
+        for _ in 1..nx {
+            new_matrix = vertcat(new_matrix, row_matrix.clone())?;
+        }
+        Ok(new_matrix)
     }
 
     /// Returns an object map containing 2-D grid coordinates based on the uni-axial coordinates
@@ -1081,7 +1026,7 @@ pub mod matrix_functions {
                 let nx = x.len();
                 let ny = y.len();
                 let x_dyn: Array = vec![Dynamic::from_array(x.to_vec()); nx];
-                let mut y_dyn: Array = vec![Dynamic::from_array(y.to_vec()); ny];
+                let y_dyn: Array = vec![Dynamic::from_array(y.to_vec()); ny];
 
                 let mut result = BTreeMap::new();
                 let mut xid = smartstring::SmartString::new();
@@ -1089,7 +1034,9 @@ pub mod matrix_functions {
                 let mut yid = smartstring::SmartString::new();
                 yid.push_str("y");
                 result.insert(xid, Dynamic::from_array(x_dyn));
-                result.insert(yid, Dynamic::from_array(transpose(&mut y_dyn).unwrap()));
+                let y_matrix = RhaiMatrix::from_array(y_dyn);
+                let y_t = transpose(y_matrix)?.to_array();
+                result.insert(yid, Dynamic::from_array(y_t));
                 Ok(result)
             })
         })

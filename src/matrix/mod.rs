@@ -197,6 +197,73 @@ impl RhaiMatrix {
         }
         Self(rows)
     }
+
+    /// Transpose the matrix.
+    ///
+    /// # Errors
+    /// Returns an error if the matrix contains non-numeric values or rows of
+    /// unequal length.
+    #[cfg(feature = "nalgebra")]
+    pub fn transpose(&self) -> Result<Self, Box<EvalAltResult>> {
+        let dm = self.to_dmatrix()?;
+        Ok(Self::from_dmatrix(&dm.transpose()))
+    }
+
+    /// Horizontally concatenate two matrices.
+    ///
+    /// # Errors
+    /// Returns an error if the matrices have differing row counts or contain
+    /// non-numeric values.
+    #[cfg(feature = "nalgebra")]
+    pub fn concat_h(&self, other: &Self) -> Result<Self, Box<EvalAltResult>> {
+        let left = self.to_dmatrix()?;
+        let right = other.to_dmatrix()?;
+        if left.nrows() != right.nrows() {
+            return Err(EvalAltResult::ErrorArithmetic(
+                "Matrices must have the same number of rows".to_string(),
+                Position::NONE,
+            )
+            .into());
+        }
+        let cols = left.ncols() + right.ncols();
+        let rows = left.nrows();
+        let mat = DMatrix::from_fn(rows, cols, |i, j| {
+            if j < left.ncols() {
+                left[(i, j)]
+            } else {
+                right[(i, j - left.ncols())]
+            }
+        });
+        Ok(Self::from_dmatrix(&mat))
+    }
+
+    /// Vertically concatenate two matrices.
+    ///
+    /// # Errors
+    /// Returns an error if the matrices have differing column counts or contain
+    /// non-numeric values.
+    #[cfg(feature = "nalgebra")]
+    pub fn concat_v(&self, other: &Self) -> Result<Self, Box<EvalAltResult>> {
+        let top = self.to_dmatrix()?;
+        let bottom = other.to_dmatrix()?;
+        if top.ncols() != bottom.ncols() {
+            return Err(EvalAltResult::ErrorArithmetic(
+                "Matrices must have the same number of columns".to_string(),
+                Position::NONE,
+            )
+            .into());
+        }
+        let rows = top.nrows() + bottom.nrows();
+        let cols = top.ncols();
+        let mat = DMatrix::from_fn(rows, cols, |i, j| {
+            if i < top.nrows() {
+                top[(i, j)]
+            } else {
+                bottom[(i - top.nrows(), j)]
+            }
+        });
+        Ok(Self::from_dmatrix(&mat))
+    }
 }
 
 /// Wrapper around [`rhai::Array`] representing a vector.

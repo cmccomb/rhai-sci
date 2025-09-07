@@ -7,6 +7,8 @@ pub mod stats {
         if_list_do_int_or_do_float,
     };
     #[cfg(feature = "nalgebra")]
+    use crate::matrix::RhaiMatrix;
+    #[cfg(feature = "nalgebra")]
     use rhai::Map;
     use rhai::{Array, Dynamic, EvalAltResult, Position, FLOAT, INT};
 
@@ -550,10 +552,11 @@ pub mod stats {
     #[rhai_fn(name = "regress", return_raw, pure)]
     pub fn regress(x: &mut Array, y: Array) -> Result<Map, Box<EvalAltResult>> {
         use linregress::{FormulaRegressionBuilder, RegressionDataBuilder};
-        let x_transposed = crate::matrix_functions::transpose(x)?;
+        let x_transposed = crate::matrix_functions::transpose(RhaiMatrix::from_array(x.clone()))?;
+        let x_arr = x_transposed.to_array();
         let mut data: Vec<(String, Vec<f64>)> = vec![];
         let mut vars = vec![];
-        for (iter, column) in x_transposed.iter().enumerate() {
+        for (iter, column) in x_arr.iter().enumerate() {
             let var_name = format!("x_{iter}");
             vars.push(var_name.clone());
             data.push((
