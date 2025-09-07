@@ -1022,15 +1022,17 @@ pub mod matrix_functions {
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "repmat", return_raw)]
     pub fn repmat(matrix: RhaiMatrix, nx: INT, ny: INT) -> Result<RhaiMatrix, Box<EvalAltResult>> {
-        let mut row_matrix = matrix.clone();
-        for _ in 1..ny {
-            row_matrix = horzcat(row_matrix, matrix.clone())?;
-        }
-        let mut new_matrix = row_matrix.clone();
-        for _ in 1..nx {
-            new_matrix = vertcat(new_matrix, row_matrix.clone())?;
-        }
-        Ok(new_matrix)
+        let oriented = matrix
+            .as_column()
+            .or_else(|| matrix.as_row())
+            .unwrap_or(matrix);
+        let dm = oriented.to_dmatrix()?;
+        let nx = if nx < 1 { 1 } else { nx as usize };
+        let ny = if ny < 1 { 1 } else { ny as usize };
+        let mat = DMatrix::from_fn(dm.nrows() * nx, dm.ncols() * ny, |i, j| {
+            dm[(i % dm.nrows(), j % dm.ncols())]
+        });
+        Ok(RhaiMatrix::from_dmatrix(&mat))
     }
 
     #[cfg(feature = "nalgebra")]
