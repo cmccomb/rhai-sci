@@ -2,8 +2,7 @@ use rhai::plugin::*;
 
 #[export_module]
 pub mod trig_functions {
-    use crate::if_int_convert_to_float_and_do;
-    use rhai::{Array, Dynamic, EvalAltResult, Position, FLOAT, INT};
+    use rhai::{Array, Dynamic, FLOAT};
 
     /// Converts the argument from degrees to radians
     /// ```typescript

@@ -28,6 +28,102 @@ impl RhaiMatrix {
         Self(arr)
     }
 
+    /// Construct a [`RhaiMatrix`] representing a row vector (`1×N`).
+    ///
+    /// # Examples
+    /// ```
+    /// use rhai::{Array, Dynamic};
+    /// use rhai_sci::matrix::RhaiMatrix;
+    /// let data: Array = vec![Dynamic::from_int(1), Dynamic::from_int(2)];
+    /// let row = RhaiMatrix::row_vector(data.clone());
+    /// assert!(row.as_row().is_some());
+    /// ```
+    #[must_use]
+    pub fn row_vector(data: Array) -> Self {
+        Self(vec![Dynamic::from_array(data)])
+    }
+
+    /// Construct a [`RhaiMatrix`] representing a column vector (`N×1`).
+    ///
+    /// # Examples
+    /// ```
+    /// use rhai::{Array, Dynamic};
+    /// use rhai_sci::matrix::RhaiMatrix;
+    /// let data: Array = vec![Dynamic::from_int(1), Dynamic::from_int(2)];
+    /// let column = RhaiMatrix::column_vector(data.clone());
+    /// assert!(column.as_column().is_some());
+    /// ```
+    #[must_use]
+    pub fn column_vector(data: Array) -> Self {
+        let rows = data
+            .into_iter()
+            .map(|v| Dynamic::from_array(vec![v]))
+            .collect();
+        Self(rows)
+    }
+
+    /// Return the matrix as a row vector (`1×N`), reshaping a column vector if necessary.
+    ///
+    /// Returns `None` if the matrix is not `1×N` or `N×1`.
+    ///
+    /// # Examples
+    /// ```
+    /// use rhai::{Array, Dynamic};
+    /// use rhai_sci::matrix::RhaiMatrix;
+    /// let data: Array = vec![Dynamic::from_int(1), Dynamic::from_int(2)];
+    /// let column = RhaiMatrix::column_vector(data.clone());
+    /// let row = column.as_row().unwrap();
+    /// assert!(row.as_row().is_some());
+    /// ```
+    #[must_use]
+    pub fn as_row(&self) -> Option<Self> {
+        let mut arr = self.0.clone();
+        let shape = crate::matrix_functions::matrix_size_by_reference(&mut arr.clone());
+        if shape.len() == 2 {
+            if shape[0].as_int().unwrap() == 1_i64 {
+                Some(self.clone())
+            } else if shape[1].as_int().unwrap() == 1_i64 {
+                let flat = crate::matrix_functions::flatten(&mut arr);
+                Some(Self::row_vector(flat))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Return the matrix as a column vector (`N×1`), reshaping a row vector if necessary.
+    ///
+    /// Returns `None` if the matrix is not `1×N` or `N×1`.
+    ///
+    /// # Examples
+    /// ```
+    /// use rhai::{Array, Dynamic};
+    /// use rhai_sci::matrix::RhaiMatrix;
+    /// let data: Array = vec![Dynamic::from_int(1), Dynamic::from_int(2)];
+    /// let row = RhaiMatrix::row_vector(data.clone());
+    /// let column = row.as_column().unwrap();
+    /// assert!(column.as_column().is_some());
+    /// ```
+    #[must_use]
+    pub fn as_column(&self) -> Option<Self> {
+        let mut arr = self.0.clone();
+        let shape = crate::matrix_functions::matrix_size_by_reference(&mut arr.clone());
+        if shape.len() == 2 {
+            if shape[1].as_int().unwrap() == 1_i64 {
+                Some(self.clone())
+            } else if shape[0].as_int().unwrap() == 1_i64 {
+                let flat = crate::matrix_functions::flatten(&mut arr);
+                Some(Self::column_vector(flat))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     /// Convert the matrix back into a [`rhai::Array`].
     #[must_use]
     pub fn to_array(self) -> Array {

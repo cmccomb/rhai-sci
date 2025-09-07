@@ -337,7 +337,7 @@ pub mod matrix_functions {
             .count() as INT
     }
 
-    #[cfg(all(feature = "io"))]
+    #[cfg(feature = "io")]
     pub mod read_write {
         use polars::prelude::{CsvReadOptions, DataType, SerReader};
         use rhai::{Array, Dynamic, EvalAltResult, ImmutableString, FLOAT};
