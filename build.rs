@@ -85,7 +85,7 @@ fn main() {
         let function = function.clone();
         // Pull out basic info
         let name = function.name;
-        if !name.starts_with("anon") && !name.starts_with("_") && !name.starts_with("$CONSTANTS$"){
+        if !name.starts_with("anon") && !name.starts_with("_") && !name.starts_with("$CONSTANTS$") {
             let signature = function
                 .signature
                 .replace("Result<", "")
@@ -225,3 +225,8 @@ mod functions {
 
 #[cfg(feature = "metadata")]
 pub use functions::*;
+
+#[cfg(feature = "metadata")]
+pub mod matrix {
+    include!("src/matrix/mod.rs");
+}
