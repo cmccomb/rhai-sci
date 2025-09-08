@@ -103,14 +103,14 @@ pub mod validation_functions {
         }
     }
 
-    /// Tests whether the input is a row vector
+    /// Tests whether the input is a row vector.
     /// ```typescript
-    /// let x = ones([1, 5]);
-    /// assert_eq(is_row_vector(x), true)
+    /// let row = [[1, 2, 3]];
+    /// assert_eq(is_row_vector(row), true);
     /// ```
     /// ```typescript
-    /// let x = ones([5, 5]);
-    /// assert_eq(is_row_vector(x), false)
+    /// let column = [[1], [2], [3]];
+    /// assert_eq(is_row_vector(column), false);
     /// ```
     #[rhai_fn(name = "is_row_vector", pure)]
     pub fn is_row_vector(arr: &mut Array) -> bool {
@@ -123,14 +123,14 @@ pub mod validation_functions {
         }
     }
 
-    /// Tests whether the input is a column vector
+    /// Tests whether the input is a column vector.
     /// ```typescript
-    /// let x = ones([5, 1]);
-    /// assert_eq(is_column_vector(x), true)
+    /// let column = [[1], [2], [3]];
+    /// assert_eq(is_column_vector(column), true);
     /// ```
     /// ```typescript
-    /// let x = ones([5, 5]);
-    /// assert_eq(is_column_vector(x), false)
+    /// let row = [[1, 2, 3]];
+    /// assert_eq(is_column_vector(row), false);
     /// ```
     #[rhai_fn(name = "is_column_vector", pure)]
     pub fn is_column_vector(arr: &mut Array) -> bool {

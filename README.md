@@ -43,19 +43,26 @@ engine.register_global_module(SciPackage::new().as_shared_module());
 let value = engine.eval::<INT>("argmin([43, 42, -500])").unwrap();
 ```
 
-## Matrix helpers
+## Matrix & Vector Conventions
 
-`rhai-sci` provides constructors for row and column vectors and utilities to reorient
-`1×N` and `N×1` matrices:
+Matrices use the conventional `n×m` shape where `n` is the number of rows and `m`
+is the number of columns. Row vectors have shape `1×n` and column vectors use
+`n×1`.
+
+`rhai-sci` provides helpers for constructing and reorienting these shapes:
 
 ```rust
 use rhai::{Array, Dynamic};
 use rhai_sci::matrix::RhaiMatrix;
 
 let data: Array = vec![Dynamic::from_int(1), Dynamic::from_int(2)];
-let row = RhaiMatrix::row_vector(data.clone());
-let column = row.as_column().unwrap();
+let row = RhaiMatrix::row_vector(data.clone());      // 1×2
+let column = row.as_column().unwrap();               // 2×1
 ```
+
+The `row_vector` and `column_vector` constructors create oriented vectors,
+while `as_row` and `as_column` convert `1×n` and `n×1` matrices between the two
+orientations.
 
 # Features
 
