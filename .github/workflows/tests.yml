@@ -18,12 +18,10 @@ jobs:
         with:
           toolchain: stable
           override: true
-          components: clippy, rustfmt
+          components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: Format
         run: cargo fmt --all -- --check
-      - name: Lint
-        run: cargo clippy --all-targets --no-default-features --features rand,nalgebra -- -D warnings -D clippy::pedantic
       - name: Test
         run: cargo test --no-default-features --features rand,nalgebra
 

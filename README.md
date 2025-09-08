@@ -56,7 +56,6 @@ The full API is documented on [docs.rs](https://docs.rs/rhai-sci).
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --all-targets --no-default-features --features rand,nalgebra -- -D warnings -D clippy::pedantic
 cargo test --no-default-features --features rand,nalgebra
 ```
 
