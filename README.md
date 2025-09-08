@@ -39,8 +39,6 @@ engine.register_global_module(SciPackage::new().as_shared_module());
 let value = engine.eval::<INT>("argmin([43, 42, -500])").unwrap();
 ```
 
-## Config
-
 ### Features
 
 - **metadata** *(disabled)*: export function metadata; required for running doc-tests on Rhai examples.
