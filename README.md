@@ -43,6 +43,15 @@ engine.register_global_module(SciPackage::new().as_shared_module());
 let value = engine.eval::<INT>("argmin([43, 42, -500])").unwrap();
 ```
 
+## Examples
+
+The `examples/` directory contains runnable snippets that showcase `rhai-sci` in action:
+
+- `download_and_regress.rs` – download CSV data and perform a linear regression.
+- `matrix_inversion.rs` – compute the inverse of a small matrix using `inv`.
+
+Run any example with `cargo run --example <name>`.
+
 ## Matrix & Vector Conventions
 
 Matrices use the conventional `n×m` shape where `n` is the number of rows and `m`
