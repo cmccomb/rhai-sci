@@ -2,12 +2,12 @@ use rhai::plugin::*;
 
 #[export_module]
 pub mod stats {
+    #[cfg(feature = "nalgebra")]
+    use crate::matrix::RhaiMatrix;
     use crate::{
         array_to_vec_float, array_to_vec_int, if_list_convert_to_vec_float_and_do, if_list_do,
         if_list_do_int_or_do_float,
     };
-    #[cfg(feature = "nalgebra")]
-    use crate::matrix::RhaiMatrix;
     #[cfg(feature = "nalgebra")]
     use rhai::Map;
     use rhai::{Array, Dynamic, EvalAltResult, Position, FLOAT, INT};

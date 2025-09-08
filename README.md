@@ -2,73 +2,74 @@
 [![Crates.io](https://img.shields.io/crates/v/rhai-sci.svg)](https://crates.io/crates/rhai-sci)
 [![docs.rs](https://img.shields.io/docsrs/rhai-sci/latest?logo=rust)](https://docs.rs/rhai-sci)
 
-# About `rhai-sci`
+# rhai-sci
 
-This crate provides some basic scientific computing utilities for the [`Rhai`](https://rhai.rs/) scripting language,
-inspired by languages like MATLAB, Octave, and R. For a complete API reference,
-check [the docs](https://docs.rs/rhai-sci).
+## What & Why
 
-# Install
+`rhai-sci` adds basic scientific computing utilities to the [Rhai](https://rhai.rs/) scripting language. It is inspired by tools such as MATLAB, Octave, and R.
 
-To use the latest released version of `rhai-sci`, add this to your `Cargo.toml`:
+## Quickstart
+
+Add the crate to your `Cargo.toml`:
 
 ```toml
 rhai-sci = "0.2.2"
 ```
 
-# Usage
-
-Using this crate is pretty simple! If you just want to evaluate a single line of [`Rhai`](https://rhai.rs/), then you
-only need:
+Evaluate a single line of Rhai code:
 
 ```rust
 use rhai::INT;
 use rhai_sci::eval;
+
 let result = eval::<INT>("argmin([43, 42, -500])").unwrap();
 ```
 
-If you need to use `rhai-sci` as part of a persistent [`Rhai`](https://rhai.rs/) scripting engine, then do this instead:
+## Examples
+
+Integrate the package with a persistent Rhai engine:
 
 ```rust
-use rhai::{Engine, packages::Package, INT};
+use rhai::{packages::Package, Engine, INT};
 use rhai_sci::SciPackage;
 
-// Create a new Rhai engine
 let mut engine = Engine::new();
-
-// Add the rhai-sci package to the new engine
 engine.register_global_module(SciPackage::new().as_shared_module());
 
-// Now run your code
 let value = engine.eval::<INT>("argmin([43, 42, -500])").unwrap();
 ```
 
-## Matrix & Vector Conventions
+## Config
 
-Matrices use the conventional `n×m` shape where `n` is the number of rows and `m`
-is the number of columns. Row vectors have shape `1×n` and column vectors use
-`n×1`.
+### Features
 
-`rhai-sci` provides helpers for constructing and reorienting these shapes:
+- **metadata** *(disabled)*: export function metadata; required for running doc-tests on Rhai examples.
+- **io** *(enabled)*: provides `read_matrix` but pulls in `polars`, `url`, `temp-file`, `csv-sniffer`, and `minreq`.
+- **nalgebra** *(enabled)*: enables matrix functions such as `regress`, `inv`, `mtimes`, `horzcat`, `vertcat`, `repmat`, `svd`, `hessenberg`, and `qr` via the `nalgebra` and `linregress` crates.
+- **rand** *(enabled)*: adds the `rand` function for generating random values and matrices using the `rand` crate.
 
-```rust
-use rhai::{Array, Dynamic};
-use rhai_sci::matrix::RhaiMatrix;
+## CLI/API reference
 
-let data: Array = vec![Dynamic::from_int(1), Dynamic::from_int(2)];
-let row = RhaiMatrix::row_vector(data.clone());      // 1×2
-let column = row.as_column().unwrap();               // 2×1
+The full API is documented on [docs.rs](https://docs.rs/rhai-sci).
+
+## Development
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --no-default-features --features rand,nalgebra -- -D warnings -D clippy::pedantic
+cargo test --no-default-features --features rand,nalgebra
 ```
 
-The `row_vector` and `column_vector` constructors create oriented vectors,
-while `as_row` and `as_column` convert `1×n` and `n×1` matrices between the two
-orientations.
+## Troubleshooting
 
-# Features
+- Building with the `io` feature enabled pulls in heavy dependencies. Disable default features and enable only what you need if builds are slow.
 
-| Feature    | Default  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-|------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `metadata` | Disabled | Enables exporting function metadata and is ___necessary for running doc-tests on Rhai examples___.                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `io`       | Enabled  | Enables the [`read_matrix`](#read_matrixfile_path-string---array) function but pulls in several additional dependencies (`polars`, `url`, `temp-file`, `csv-sniffer`, `minreq`).                                                                                                                                                                                                                                                                                                                                      |
-| `nalgebra` | Enabled  | Enables several functions ([`regress`](#regressx-array-y-array---map), [`inv`](#invmatrix-array---array), [`mtimes`](#mtimesmatrix1-array-matrix2-array---array), [`horzcat`](#horzcatmatrix1-rhaimatrix-matrix2-rhaimatrix---rhaimatrix), [`vertcat`](#vertcatmatrix1-rhaimatrix-matrix2-rhaimatrix---rhaimatrix), [`repmat`](#repmatmatrix-rhaimatrix-nx-i64-ny-i64---rhaimatrix), [`svd`](#svdmatrix-array---map), [`hessenberg`](#hessenbergmatrix-array---map), and [`qr`](#qrmatrix-array---map)) but brings in the `nalgebra` and `linregress` crates. |
-| `rand`     | Enabled  | Enables the [`rand`](#rand) function for generating random FLOAT values and random matrices, but brings in the `rand` crate.                                                                                                                                                                                                                                                                                                                                                                                          |
+## License
+
+Licensed under either of
+
+- [MIT license](LICENSE-MIT.txt)
+- [Apache License, Version 2.0](LICENSE-APACHE.txt)
+
+at your option.
+
