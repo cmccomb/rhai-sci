@@ -899,10 +899,10 @@ pub mod matrix_functions {
 
     /// Concatenate two arrays horizontally.
     /// ```typescript
-    /// let arr1 = eye(3);
-    /// let arr2 = eye(3);
-    /// let combined = horzcat(arr1, arr2);
-    /// assert_eq(size(combined), [3, 6]);
+    /// let left = [[1, 2]];
+    /// let right = [[3, 4]];
+    /// let row = horzcat(left, right);
+    /// assert_eq(row, [[1.0, 2.0, 3.0, 4.0]]);
     /// ```
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "horzcat", return_raw)]
@@ -927,10 +927,10 @@ pub mod matrix_functions {
 
     /// Concatenates two array vertically.
     /// ```typescript
-    /// let arr1 = eye(3);
-    /// let arr2 = eye(3);
-    /// let combined = vertcat(arr1, arr2);
-    /// assert_eq(size(combined), [6, 3]);
+    /// let top = [[1], [2]];
+    /// let bottom = [[3], [4]];
+    /// let column = vertcat(top, bottom);
+    /// assert_eq(column, [[1.0], [2.0], [3.0], [4.0]]);
     /// ```
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "vertcat", return_raw)]

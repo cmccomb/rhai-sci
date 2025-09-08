@@ -5,7 +5,7 @@ use rhai::{Array, Dynamic, EvalAltResult, Position, FLOAT};
 /// Wrapper around [`rhai::Array`] representing a matrix.
 ///
 /// This type provides conversions between Rhai arrays and
-/// [`nalgebra::DMatrix`].
+/// `nalgebra::DMatrix`.
 ///
 /// # Examples
 /// ```
@@ -130,7 +130,7 @@ impl RhaiMatrix {
         self.0
     }
 
-    /// Convert the matrix into a [`nalgebra::DMatrix`].
+    /// Convert the matrix into a `nalgebra::DMatrix`.
     ///
     /// # Errors
     /// Returns an error if any element is non-numeric or rows have differing lengths.
@@ -183,7 +183,7 @@ impl RhaiMatrix {
         Ok(dm)
     }
 
-    /// Create a [`RhaiMatrix`] from a [`nalgebra::DMatrix`].
+    /// Create a [`RhaiMatrix`] from a `nalgebra::DMatrix`.
     #[cfg(feature = "nalgebra")]
     #[must_use]
     pub fn from_dmatrix(mat: &DMatrix<FLOAT>) -> Self {
@@ -211,6 +211,16 @@ impl RhaiMatrix {
 
     /// Horizontally concatenate two matrices.
     ///
+    /// # Examples
+    /// ```
+    /// use rhai::{Array, Dynamic};
+    /// use rhai_sci::{matrix::RhaiMatrix, validation_functions::is_row_vector};
+    /// let left = RhaiMatrix::row_vector(vec![Dynamic::from_int(1), Dynamic::from_int(2)]);
+    /// let right = RhaiMatrix::row_vector(vec![Dynamic::from_int(3), Dynamic::from_int(4)]);
+    /// let combined = left.concat_h(&right).unwrap();
+    /// let mut arr = combined.to_array();
+    /// assert!(is_row_vector(&mut arr));
+    /// ```
     /// # Errors
     /// Returns an error if the matrices have differing row counts or contain
     /// non-numeric values.
@@ -239,6 +249,16 @@ impl RhaiMatrix {
 
     /// Vertically concatenate two matrices.
     ///
+    /// # Examples
+    /// ```
+    /// use rhai::{Array, Dynamic};
+    /// use rhai_sci::{matrix::RhaiMatrix, validation_functions::is_column_vector};
+    /// let top = RhaiMatrix::column_vector(vec![Dynamic::from_int(1), Dynamic::from_int(2)]);
+    /// let bottom = RhaiMatrix::column_vector(vec![Dynamic::from_int(3), Dynamic::from_int(4)]);
+    /// let combined = top.concat_v(&bottom).unwrap();
+    /// let mut arr = combined.to_array();
+    /// assert!(is_column_vector(&mut arr));
+    /// ```
     /// # Errors
     /// Returns an error if the matrices have differing column counts or contain
     /// non-numeric values.
@@ -292,7 +312,7 @@ impl RhaiVector {
         self.0
     }
 
-    /// Convert the vector into a [`nalgebra::DVector`].
+    /// Convert the vector into a `nalgebra::DVector`.
     ///
     /// # Errors
     /// Returns an error if any element is non-numeric.
@@ -319,7 +339,7 @@ impl RhaiVector {
         Ok(dv)
     }
 
-    /// Create a [`RhaiVector`] from a [`nalgebra::DVector`].
+    /// Create a [`RhaiVector`] from a `nalgebra::DVector`.
     #[cfg(feature = "nalgebra")]
     #[must_use]
     pub fn from_dvector(vec: &DVector<FLOAT>) -> Self {
