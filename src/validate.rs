@@ -5,7 +5,7 @@ pub mod validation_functions {
     use crate::matrix::RhaiMatrix;
     use rhai::{Array, Dynamic};
 
-    /// Tests whether the input in a simple list array
+    /// Tests whether the input is a simple list or a numeric vector.
     /// ```typescript
     /// let x = [1, 2, 3, 4];
     /// assert_eq(is_list(x), true);
@@ -16,8 +16,13 @@ pub mod validation_functions {
     /// ```
     #[rhai_fn(name = "is_list", pure)]
     pub fn is_list(arr: &mut Array) -> bool {
-        if crate::matrix_functions::matrix_size_by_reference(arr).len() == 1 {
+        let shape = crate::matrix_functions::matrix_size_by_reference(arr);
+        if shape.len() == 1 {
             true
+        } else if shape.len() == 2 {
+            let (ints, floats, total) = crate::int_and_float_totals(arr);
+            let numeric = ints + floats == total;
+            numeric && (is_row_vector(arr) || is_column_vector(arr))
         } else {
             false
         }
@@ -80,7 +85,8 @@ pub mod validation_functions {
         };
     }
 
-    /// Tests whether the input in a simple list array composed of either floating point or integer values.
+    /// Tests whether the input in a simple list array composed of either floating point or integer values
+    /// or a numeric row/column vector.
     /// ```typescript
     /// let x = [1.0, 2.0, 3.0, 4.0];
     /// assert_eq(is_numeric_list(x), true)

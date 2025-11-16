@@ -104,3 +104,80 @@ fn meshgrid_matches_matlab_shape_for_mismatched_lengths() {
         .collect();
     assert_eq!(y_rows, vec![vec![4, 4, 4], vec![5, 5, 5]]);
 }
+
+#[test]
+fn meshgrid_accepts_row_vector_input() {
+    let row: Array = vec![Dynamic::from_array(vec![
+        Dynamic::from_int(0),
+        Dynamic::from_int(1),
+        Dynamic::from_int(2),
+    ])];
+    let y: Array = vec![Dynamic::from_int(3), Dynamic::from_int(4)];
+
+    let grid = meshgrid(row, y).unwrap();
+
+    let x_grid = grid.get("x").unwrap().clone().into_array().unwrap();
+    let y_grid = grid.get("y").unwrap().clone().into_array().unwrap();
+
+    for row in x_grid.into_iter() {
+        let values: Vec<INT> = row
+            .into_array()
+            .unwrap()
+            .into_iter()
+            .map(|d| d.as_int().unwrap())
+            .collect();
+        assert_eq!(values, vec![0, 1, 2]);
+    }
+
+    let y_rows: Vec<Vec<INT>> = y_grid
+        .into_iter()
+        .map(|row| {
+            row.into_array()
+                .unwrap()
+                .into_iter()
+                .map(|d| d.as_int().unwrap())
+                .collect()
+        })
+        .collect();
+    assert_eq!(y_rows, vec![vec![3, 3, 3], vec![4, 4, 4]]);
+}
+
+#[test]
+fn meshgrid_accepts_column_vector_inputs() {
+    let column_x: Array = vec![
+        Dynamic::from_array(vec![Dynamic::from_int(0)]),
+        Dynamic::from_array(vec![Dynamic::from_int(1)]),
+        Dynamic::from_array(vec![Dynamic::from_int(2)]),
+    ];
+    let column_y: Array = vec![
+        Dynamic::from_array(vec![Dynamic::from_int(3)]),
+        Dynamic::from_array(vec![Dynamic::from_int(4)]),
+    ];
+
+    let grid = meshgrid(column_x, column_y).unwrap();
+
+    let x_grid = grid.get("x").unwrap().clone().into_array().unwrap();
+    let y_grid = grid.get("y").unwrap().clone().into_array().unwrap();
+
+    for row in x_grid.into_iter() {
+        let values: Vec<INT> = row
+            .into_array()
+            .unwrap()
+            .into_iter()
+            .map(|d| d.as_int().unwrap())
+            .collect();
+        assert_eq!(values, vec![0, 1, 2]);
+    }
+
+    let y_rows: Vec<Vec<INT>> = y_grid
+        .into_iter()
+        .map(|row| {
+            row.into_array()
+                .unwrap()
+                .into_iter()
+                .map(|d| d.as_int().unwrap())
+                .collect()
+        })
+        .collect();
+    assert_eq!(y_rows, vec![vec![3, 3, 3], vec![4, 4, 4]]);
+}
