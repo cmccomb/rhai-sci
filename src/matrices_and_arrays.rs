@@ -921,9 +921,7 @@ pub mod matrix_functions {
         matrix1: RhaiMatrix,
         matrix2: RhaiMatrix,
     ) -> Result<RhaiMatrix, Box<EvalAltResult>> {
-        let left = matrix1.as_row().unwrap_or(matrix1);
-        let right = matrix2.as_row().unwrap_or(matrix2);
-        left.concat_h(&right)
+        matrix1.concat_h(&matrix2)
     }
 
     #[cfg(feature = "nalgebra")]
@@ -949,9 +947,7 @@ pub mod matrix_functions {
         matrix1: RhaiMatrix,
         matrix2: RhaiMatrix,
     ) -> Result<RhaiMatrix, Box<EvalAltResult>> {
-        let top = matrix1.as_column().unwrap_or(matrix1);
-        let bottom = matrix2.as_column().unwrap_or(matrix2);
-        top.concat_v(&bottom)
+        matrix1.concat_v(&matrix2)
     }
 
     #[cfg(feature = "nalgebra")]
