@@ -1,7 +1,7 @@
-use rhai::{Array, Dynamic, FLOAT, INT};
+use rhai::{Array, Dynamic, EvalAltResult, FLOAT, INT};
 use rhai_sci::matrix::RhaiMatrix;
 use rhai_sci::matrix_functions::{
-    horzcat, matrix_size_by_reference, meshgrid, repmat, transpose, vertcat,
+    diag, horzcat, matrix_size_by_reference, meshgrid, repmat, transpose, vertcat,
 };
 use rhai_sci::validation_functions::{is_column_vector, is_row_vector};
 
@@ -31,6 +31,29 @@ fn horzcat_concatenates_rows() {
 }
 
 #[test]
+fn horzcat_column_vectors_result_in_matrix_with_two_columns() {
+    let a = RhaiMatrix::column_vector(vec![Dynamic::from_int(1), Dynamic::from_int(2)]);
+    let b = RhaiMatrix::column_vector(vec![Dynamic::from_int(3), Dynamic::from_int(4)]);
+    let mut result = horzcat(a, b).unwrap().to_array();
+    let shape = matrix_size_by_reference(&mut result);
+    let dims: Vec<INT> = shape.into_iter().map(|d| d.as_int().unwrap()).collect();
+    assert_eq!(dims, vec![2, 2]);
+}
+
+#[test]
+fn horzcat_mixed_shapes_error_out() {
+    let row = RhaiMatrix::row_vector(vec![Dynamic::from_int(1), Dynamic::from_int(2)]);
+    let column = RhaiMatrix::column_vector(vec![Dynamic::from_int(3), Dynamic::from_int(4)]);
+    let err = horzcat(row, column).unwrap_err();
+    match err.as_ref() {
+        EvalAltResult::ErrorArithmetic(message, _) => {
+            assert!(message.contains("same number of rows"));
+        }
+        other => panic!("unexpected error: {:?}", other),
+    }
+}
+
+#[test]
 fn vertcat_concatenates_columns() {
     let a: Array = vec![
         Dynamic::from_array(vec![Dynamic::from_int(1)]),
@@ -44,6 +67,29 @@ fn vertcat_concatenates_columns() {
     let m2 = RhaiMatrix::from_array(b);
     let mut result = vertcat(m1, m2).unwrap().to_array();
     assert!(is_column_vector(&mut result));
+}
+
+#[test]
+fn vertcat_row_vectors_result_in_matrix_with_two_rows() {
+    let m1 = RhaiMatrix::row_vector(vec![Dynamic::from_int(1), Dynamic::from_int(2)]);
+    let m2 = RhaiMatrix::row_vector(vec![Dynamic::from_int(3), Dynamic::from_int(4)]);
+    let mut result = vertcat(m1, m2).unwrap().to_array();
+    let shape = matrix_size_by_reference(&mut result);
+    let dims: Vec<INT> = shape.into_iter().map(|d| d.as_int().unwrap()).collect();
+    assert_eq!(dims, vec![2, 2]);
+}
+
+#[test]
+fn vertcat_mixed_shapes_error_out() {
+    let column = RhaiMatrix::column_vector(vec![Dynamic::from_int(1), Dynamic::from_int(2)]);
+    let row = RhaiMatrix::row_vector(vec![Dynamic::from_int(3), Dynamic::from_int(4)]);
+    let err = vertcat(column, row).unwrap_err();
+    match err.as_ref() {
+        EvalAltResult::ErrorArithmetic(message, _) => {
+            assert!(message.contains("same number of columns"));
+        }
+        other => panic!("unexpected error: {:?}", other),
+    }
 }
 
 #[test]

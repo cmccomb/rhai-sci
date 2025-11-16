@@ -4,6 +4,7 @@ use rhai::plugin::*;
 pub mod matrix_functions {
     #[cfg(feature = "nalgebra")]
     use crate::matrix::{RhaiMatrix, RhaiVector};
+    use crate::validation_functions::{is_column_vector, is_row_vector};
     use crate::{
         array_to_vec_float, if_int_convert_to_float_and_do, if_int_do_else_if_array_do, if_list_do,
         if_matrix_convert_to_vec_array_and_do,
@@ -921,9 +922,7 @@ pub mod matrix_functions {
         matrix1: RhaiMatrix,
         matrix2: RhaiMatrix,
     ) -> Result<RhaiMatrix, Box<EvalAltResult>> {
-        let left = matrix1.as_row().unwrap_or(matrix1);
-        let right = matrix2.as_row().unwrap_or(matrix2);
-        left.concat_h(&right)
+        matrix1.concat_h(&matrix2)
     }
 
     #[cfg(feature = "nalgebra")]
@@ -949,9 +948,7 @@ pub mod matrix_functions {
         matrix1: RhaiMatrix,
         matrix2: RhaiMatrix,
     ) -> Result<RhaiMatrix, Box<EvalAltResult>> {
-        let top = matrix1.as_column().unwrap_or(matrix1);
-        let bottom = matrix2.as_column().unwrap_or(matrix2);
-        top.concat_v(&bottom)
+        matrix1.concat_v(&matrix2)
     }
 
     #[cfg(feature = "nalgebra")]
@@ -984,44 +981,60 @@ pub mod matrix_functions {
     /// ```
     #[rhai_fn(name = "diag", return_raw)]
     pub fn diag(matrix: Array) -> Result<Array, Box<EvalAltResult>> {
-        if ndims_by_reference(&mut matrix.clone()) == 2 {
-            // Turn into Vec<Array>
+        let dims = ndims_by_reference(&mut matrix.clone());
+        if dims == 2 {
+            let mut candidate_for_row = matrix.clone();
+            let mut candidate_for_col = matrix.clone();
+            if is_row_vector(&mut candidate_for_row) || is_column_vector(&mut candidate_for_col) {
+                let mut flattened_vector = matrix.clone();
+                let vector = flatten(&mut flattened_vector);
+                return Ok(diagonal_matrix_from_vector(vector));
+            }
+
             let matrix_as_vec = matrix
                 .into_iter()
                 .map(|x| x.into_array().unwrap())
                 .collect::<Vec<Array>>();
 
+            if matrix_as_vec.is_empty() {
+                return Ok(vec![]);
+            }
+
+            let cols = matrix_as_vec[0].len();
+            let diag_len = matrix_as_vec.len().min(cols);
             let mut out = vec![];
-            for i in 0..matrix_as_vec.len() {
+            for i in 0..diag_len {
                 out.push(matrix_as_vec[i][i].clone());
             }
 
             Ok(out)
-        } else if ndims_by_reference(&mut matrix.clone()) == 1 {
-            let mut out = vec![];
-            for idx in 0..matrix.len() {
-                let mut new_row = vec![];
-                for jdx in 0..matrix.len() {
-                    if idx == jdx {
-                        new_row.push(matrix[idx].clone());
-                    } else {
-                        if matrix[idx].is_int() {
-                            new_row.push(Dynamic::ZERO);
-                        } else {
-                            new_row.push(Dynamic::FLOAT_ZERO);
-                        }
-                    }
-                }
-                out.push(Dynamic::from_array(new_row));
-            }
-            Ok(out)
+        } else if dims == 1 {
+            Ok(diagonal_matrix_from_vector(matrix))
         } else {
-            return Err(EvalAltResult::ErrorArithmetic(
+            Err(EvalAltResult::ErrorArithmetic(
                 "Argument must be a 2-D matrix (to extract the diagonal) or a 1-D array (to create a matrix with that diagonal".to_string(),
                 Position::NONE,
             )
-                .into());
+            .into())
         }
+    }
+
+    fn diagonal_matrix_from_vector(vector: Array) -> Array {
+        let mut out = vec![];
+        for idx in 0..vector.len() {
+            let mut new_row = vec![];
+            for jdx in 0..vector.len() {
+                if idx == jdx {
+                    new_row.push(vector[idx].clone());
+                } else if vector[idx].is_int() {
+                    new_row.push(Dynamic::ZERO);
+                } else {
+                    new_row.push(Dynamic::FLOAT_ZERO);
+                }
+            }
+            out.push(Dynamic::from_array(new_row));
+        }
+        out
     }
 
     /// Repeats copies of a matrix
