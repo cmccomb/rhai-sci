@@ -1,5 +1,6 @@
-use rhai::{Array, Dynamic};
+use rhai::{Array, Dynamic, FLOAT};
 use rhai_sci::matrix::RhaiMatrix;
+use rhai_sci::matrix_functions;
 use rhai_sci::validation_functions::{is_column_vector, is_row_vector};
 
 #[test]
@@ -31,4 +32,53 @@ fn validate_orientation_helpers() {
     assert!(!is_row_vector(&mut column.clone()));
     assert!(is_column_vector(&mut column.clone()));
     assert!(!is_column_vector(&mut row));
+}
+
+#[test]
+fn eye_vector_size_matches_scalar_size() {
+    for size in [1, 2, 5] {
+        let scalar = matrix_functions::eye_single_input(Dynamic::from_int(size))
+            .expect("scalar eye should succeed");
+        let vector =
+            matrix_functions::eye_single_input(Dynamic::from_array(vec![Dynamic::from_int(size)]))
+                .expect("vector eye should succeed");
+        assert_eq!(
+            normalize_matrix(&scalar),
+            normalize_matrix(&vector),
+            "size {size} should match",
+        );
+    }
+}
+
+#[test]
+fn eye_vector_two_dimensions_remains_rectangular() {
+    let rectangular = matrix_functions::eye_single_input(Dynamic::from_array(vec![
+        Dynamic::from_int(2),
+        Dynamic::from_int(3),
+    ]))
+    .expect("rectangular eye should succeed");
+    assert_eq!(
+        normalize_matrix(&rectangular),
+        normalize_matrix(&matrix_functions::eye_double_input(2, 3)),
+    );
+}
+
+fn normalize_matrix(matrix: &Array) -> Vec<Vec<FLOAT>> {
+    matrix
+        .iter()
+        .map(|row| {
+            row.clone()
+                .into_array()
+                .expect("matrix rows should be arrays")
+                .into_iter()
+                .map(|value| {
+                    if value.is_float() {
+                        value.as_float().expect("value is float")
+                    } else {
+                        value.as_int().expect("value is int") as FLOAT
+                    }
+                })
+                .collect()
+        })
+        .collect()
 }
