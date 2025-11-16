@@ -1,6 +1,8 @@
 use rhai::{Array, Dynamic, FLOAT, INT};
 use rhai_sci::matrix::RhaiMatrix;
-use rhai_sci::matrix_functions::{horzcat, matrix_size_by_reference, repmat, transpose, vertcat};
+use rhai_sci::matrix_functions::{
+    horzcat, matrix_size_by_reference, meshgrid, repmat, transpose, vertcat,
+};
 use rhai_sci::validation_functions::{is_column_vector, is_row_vector};
 
 #[test]
@@ -55,4 +57,50 @@ fn repmat_replicates_matrix() {
     let shape = matrix_size_by_reference(&mut result);
     let dims: Vec<INT> = shape.into_iter().map(|d| d.as_int().unwrap()).collect();
     assert_eq!(dims, vec![4, 4]);
+}
+
+#[test]
+fn meshgrid_matches_matlab_shape_for_mismatched_lengths() {
+    let x: Array = vec![
+        Dynamic::from_int(1),
+        Dynamic::from_int(2),
+        Dynamic::from_int(3),
+    ];
+    let y: Array = vec![Dynamic::from_int(4), Dynamic::from_int(5)];
+    let grid = meshgrid(x.clone(), y.clone()).unwrap();
+
+    let x_grid = grid.get("x").unwrap().clone().into_array().unwrap();
+    let y_grid = grid.get("y").unwrap().clone().into_array().unwrap();
+
+    let mut x_grid_for_size = x_grid.clone();
+    let x_shape = matrix_size_by_reference(&mut x_grid_for_size);
+    let x_dims: Vec<INT> = x_shape.into_iter().map(|d| d.as_int().unwrap()).collect();
+    assert_eq!(x_dims, vec![2, 3]);
+
+    let mut y_grid_for_size = y_grid.clone();
+    let y_shape = matrix_size_by_reference(&mut y_grid_for_size);
+    let y_dims: Vec<INT> = y_shape.into_iter().map(|d| d.as_int().unwrap()).collect();
+    assert_eq!(y_dims, vec![2, 3]);
+
+    for row in x_grid.into_iter() {
+        let row_values: Vec<INT> = row
+            .into_array()
+            .unwrap()
+            .into_iter()
+            .map(|d| d.as_int().unwrap())
+            .collect();
+        assert_eq!(row_values, vec![1, 2, 3]);
+    }
+
+    let y_rows: Vec<Vec<INT>> = y_grid
+        .into_iter()
+        .map(|row| {
+            row.into_array()
+                .unwrap()
+                .into_iter()
+                .map(|d| d.as_int().unwrap())
+                .collect()
+        })
+        .collect();
+    assert_eq!(y_rows, vec![vec![4, 4, 4], vec![5, 5, 5]]);
 }
