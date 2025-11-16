@@ -675,6 +675,9 @@ pub mod matrix_functions {
 
     /// Returns an identity matrix. If argument is a single number, then the output is
     /// a square matrix. The argument can also be an array specifying the dimensions separately.
+    /// Passing `[n]` is equivalent to `eye(n)` (a square `n x n` matrix) while `[rows, cols]`
+    /// creates a rectangular matrix with the provided row and column counts. Any other shape is
+    /// rejected.
     /// ```typescript
     /// let matrix = eye(3);
     /// assert_eq(matrix, [[1.0, 0.0, 0.0],
@@ -689,28 +692,36 @@ pub mod matrix_functions {
     /// ```
     #[rhai_fn(name = "eye", return_raw)]
     pub fn eye_single_input(n: Dynamic) -> Result<Array, Box<EvalAltResult>> {
+        fn parse_eye_dimension(value: &Dynamic) -> Result<INT, Box<EvalAltResult>> {
+            value.as_int().map_err(|_| {
+                EvalAltResult::ErrorMismatchDataType(
+                    "Size vector for eye must contain integers".to_string(),
+                    String::new(),
+                    Position::NONE,
+                )
+                .into()
+            })
+        }
+
         if_int_do_else_if_array_do(
             n,
             |n| Ok(eye_double_input(n, n)),
-            |m| {
-                if m.len() == 1 {
-                    Ok(eye_double_input(1, m[0].as_int().unwrap())[0]
-                        .clone()
-                        .into_array()
-                        .unwrap())
-                } else if m.len() == 2 {
-                    Ok(eye_double_input(
-                        m[0].as_int().unwrap(),
-                        m[1].as_int().unwrap(),
-                    ))
-                } else {
-                    Err(EvalAltResult::ErrorMismatchDataType(
-                        format!("Cannot create an identity matrix with more than 2 dimensions"),
-                        format!(""),
-                        Position::NONE,
-                    )
-                    .into())
+            |m| match m.len() {
+                1 => {
+                    let size = parse_eye_dimension(&m[0])?;
+                    Ok(eye_double_input(size, size))
                 }
+                2 => {
+                    let rows = parse_eye_dimension(&m[0])?;
+                    let cols = parse_eye_dimension(&m[1])?;
+                    Ok(eye_double_input(rows, cols))
+                }
+                _ => Err(EvalAltResult::ErrorMismatchDataType(
+                    "Cannot create an identity matrix with more than 2 dimensions".to_string(),
+                    String::new(),
+                    Position::NONE,
+                )
+                .into()),
             },
         )
     }
