@@ -1,7 +1,7 @@
 use rhai::{Array, Dynamic, EvalAltResult, FLOAT, INT};
 use rhai_sci::matrix::RhaiMatrix;
 use rhai_sci::matrix_functions::{
-    horzcat, matrix_size_by_reference, meshgrid, repmat, transpose, vertcat,
+    diag, horzcat, matrix_size_by_reference, meshgrid, repmat, transpose, vertcat,
 };
 use rhai_sci::validation_functions::{is_column_vector, is_row_vector};
 
@@ -149,4 +149,65 @@ fn meshgrid_matches_matlab_shape_for_mismatched_lengths() {
         })
         .collect();
     assert_eq!(y_rows, vec![vec![4, 4, 4], vec![5, 5, 5]]);
+}
+
+fn matrix_to_ints(matrix: Array) -> Vec<Vec<INT>> {
+    matrix
+        .into_iter()
+        .map(|row| {
+            row.into_array()
+                .unwrap()
+                .into_iter()
+                .map(|d| d.as_int().unwrap())
+                .collect()
+        })
+        .collect()
+}
+
+#[test]
+fn diag_treats_row_and_column_vectors_equally() {
+    let column: Array = vec![
+        Dynamic::from_array(vec![Dynamic::from_int(1)]),
+        Dynamic::from_array(vec![Dynamic::from_int(2)]),
+        Dynamic::from_array(vec![Dynamic::from_int(3)]),
+    ];
+    let row: Array = vec![Dynamic::from_array(vec![
+        Dynamic::from_int(1),
+        Dynamic::from_int(2),
+        Dynamic::from_int(3),
+    ])];
+
+    let column_diag = diag(column).unwrap();
+    let row_diag = diag(row).unwrap();
+
+    let column_values = matrix_to_ints(column_diag.clone());
+    let row_values = matrix_to_ints(row_diag.clone());
+    assert_eq!(column_values, row_values);
+
+    let expected = vec![vec![1, 0, 0], vec![0, 2, 0], vec![0, 0, 3]];
+    assert_eq!(row_values, expected);
+}
+
+#[test]
+fn diag_extracts_from_rectangular_matrices() {
+    let matrix: Array = vec![
+        Dynamic::from_array(vec![
+            Dynamic::from_int(1),
+            Dynamic::from_int(2),
+            Dynamic::from_int(3),
+        ]),
+        Dynamic::from_array(vec![
+            Dynamic::from_int(4),
+            Dynamic::from_int(5),
+            Dynamic::from_int(6),
+        ]),
+    ];
+
+    let diag_values = diag(matrix).unwrap();
+    let ints: Vec<INT> = diag_values
+        .into_iter()
+        .map(|d| d.as_int().unwrap())
+        .collect();
+    let expected = vec![1, 5];
+    assert_eq!(ints, expected);
 }
