@@ -1051,6 +1051,12 @@ pub mod matrix_functions {
     ///                      [1, 2]],
     ///                "y": [[3.0, 3.0],
     ///                      [4.0, 4.0]]});
+    ///
+    /// let x = [0, 1, 2];
+    /// let y = [10];
+    /// let g = meshgrid(x, y);
+    /// assert_eq(g, #{"x": [[0, 1, 2]],
+    ///                "y": [[10.0, 10.0, 10.0]]});
     /// ```
     #[rhai_fn(name = "meshgrid", return_raw)]
     pub fn meshgrid(x: Array, y: Array) -> Result<Map, Box<EvalAltResult>> {
@@ -1058,8 +1064,14 @@ pub mod matrix_functions {
             if_list_do(&mut y.clone(), |y| {
                 let nx = x.len();
                 let ny = y.len();
-                let x_dyn: Array = vec![Dynamic::from_array(x.to_vec()); nx];
-                let y_dyn: Array = vec![Dynamic::from_array(y.to_vec()); ny];
+                let x_dyn: Array = (0..ny).map(|_| Dynamic::from_array(x.to_vec())).collect();
+                let y_dyn: Array = y
+                    .iter()
+                    .map(|value| {
+                        let y_row: Array = (0..nx).map(|_| value.clone()).collect();
+                        Dynamic::from_array(y_row)
+                    })
+                    .collect();
 
                 let mut result = BTreeMap::new();
                 let mut xid = smartstring::SmartString::new();
@@ -1067,9 +1079,7 @@ pub mod matrix_functions {
                 let mut yid = smartstring::SmartString::new();
                 yid.push_str("y");
                 result.insert(xid, Dynamic::from_array(x_dyn));
-                let y_matrix = RhaiMatrix::from_array(y_dyn);
-                let y_t = transpose(y_matrix)?.to_array();
-                result.insert(yid, Dynamic::from_array(y_t));
+                result.insert(yid, Dynamic::from_array(y_dyn));
                 Ok(result)
             })
         })
