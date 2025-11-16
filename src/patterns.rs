@@ -65,18 +65,58 @@ where
     }
 }
 
+fn list_error(message: &str) -> Box<EvalAltResult> {
+    EvalAltResult::ErrorArithmetic(message.to_string(), Position::NONE).into()
+}
+
+fn normalize_numeric_list(arr: &mut Array) -> Result<Array, Box<EvalAltResult>> {
+    if arr.len() == 1 {
+        arr.first()
+            .ok_or_else(|| list_error("Row vector inputs must contain scalar values."))?
+            .clone()
+            .into_array()
+            .map_err(|_| list_error("Row vector inputs must contain scalar values."))
+    } else {
+        arr.iter()
+            .map(|row| {
+                row.clone()
+                    .into_array()
+                    .map_err(|_| list_error("Column vector inputs must contain scalar values."))
+                    .and_then(|inner| {
+                        inner.into_iter().next().ok_or_else(|| {
+                            list_error("Column vector inputs must contain scalar values.")
+                        })
+                    })
+            })
+            .collect::<Result<Array, _>>()
+    }
+}
+
 /// Does a function if the input is a list, otherwise throws an error.
 pub fn if_list_do<F, T>(arr: &mut Array, mut f: F) -> Result<T, Box<EvalAltResult>>
 where
     F: FnMut(&mut Array) -> Result<T, Box<EvalAltResult>>,
 {
-    crate::validation_functions::is_numeric_list(arr)
-        .then(|| f(arr))
-        .unwrap_or(Err(EvalAltResult::ErrorArithmetic(
-            format!("The elements of the input array must either be INT or FLOAT."),
-            Position::NONE,
-        )
-        .into()))
+    if !crate::validation_functions::is_list(arr) {
+        return Err(list_error(
+            "Input must be a 1-D array, row vector, or column vector.",
+        ));
+    }
+
+    let (int, float, total) = int_and_float_totals(arr);
+    if !(int == total || float == total) {
+        return Err(list_error(
+            "The elements of the input array must either be INT or FLOAT.",
+        ));
+    }
+
+    let needs_normalization = crate::matrix_functions::matrix_size_by_reference(arr).len() == 2;
+    if needs_normalization {
+        let mut normalized = normalize_numeric_list(arr)?;
+        f(&mut normalized)
+    } else {
+        f(arr)
+    }
 }
 
 pub fn if_list_convert_to_vec_float_and_do<F, T>(

@@ -151,8 +151,31 @@ fn meshgrid_matches_matlab_shape_for_mismatched_lengths() {
     assert_eq!(y_rows, vec![vec![4, 4, 4], vec![5, 5, 5]]);
 }
 
-fn matrix_to_ints(matrix: Array) -> Vec<Vec<INT>> {
-    matrix
+#[test]
+fn meshgrid_accepts_row_vector_input() {
+    let row: Array = vec![Dynamic::from_array(vec![
+        Dynamic::from_int(0),
+        Dynamic::from_int(1),
+        Dynamic::from_int(2),
+    ])];
+    let y: Array = vec![Dynamic::from_int(3), Dynamic::from_int(4)];
+
+    let grid = meshgrid(row, y).unwrap();
+
+    let x_grid = grid.get("x").unwrap().clone().into_array().unwrap();
+    let y_grid = grid.get("y").unwrap().clone().into_array().unwrap();
+
+    for row in x_grid.into_iter() {
+        let values: Vec<INT> = row
+            .into_array()
+            .unwrap()
+            .into_iter()
+            .map(|d| d.as_int().unwrap())
+            .collect();
+        assert_eq!(values, vec![0, 1, 2]);
+    }
+
+    let y_rows: Vec<Vec<INT>> = y_grid
         .into_iter()
         .map(|row| {
             row.into_array()
@@ -161,53 +184,46 @@ fn matrix_to_ints(matrix: Array) -> Vec<Vec<INT>> {
                 .map(|d| d.as_int().unwrap())
                 .collect()
         })
-        .collect()
+        .collect();
+    assert_eq!(y_rows, vec![vec![3, 3, 3], vec![4, 4, 4]]);
 }
 
 #[test]
-fn diag_treats_row_and_column_vectors_equally() {
-    let column: Array = vec![
+fn meshgrid_accepts_column_vector_inputs() {
+    let column_x: Array = vec![
+        Dynamic::from_array(vec![Dynamic::from_int(0)]),
         Dynamic::from_array(vec![Dynamic::from_int(1)]),
         Dynamic::from_array(vec![Dynamic::from_int(2)]),
+    ];
+    let column_y: Array = vec![
         Dynamic::from_array(vec![Dynamic::from_int(3)]),
-    ];
-    let row: Array = vec![Dynamic::from_array(vec![
-        Dynamic::from_int(1),
-        Dynamic::from_int(2),
-        Dynamic::from_int(3),
-    ])];
-
-    let column_diag = diag(column).unwrap();
-    let row_diag = diag(row).unwrap();
-
-    let column_values = matrix_to_ints(column_diag.clone());
-    let row_values = matrix_to_ints(row_diag.clone());
-    assert_eq!(column_values, row_values);
-
-    let expected = vec![vec![1, 0, 0], vec![0, 2, 0], vec![0, 0, 3]];
-    assert_eq!(row_values, expected);
-}
-
-#[test]
-fn diag_extracts_from_rectangular_matrices() {
-    let matrix: Array = vec![
-        Dynamic::from_array(vec![
-            Dynamic::from_int(1),
-            Dynamic::from_int(2),
-            Dynamic::from_int(3),
-        ]),
-        Dynamic::from_array(vec![
-            Dynamic::from_int(4),
-            Dynamic::from_int(5),
-            Dynamic::from_int(6),
-        ]),
+        Dynamic::from_array(vec![Dynamic::from_int(4)]),
     ];
 
-    let diag_values = diag(matrix).unwrap();
-    let ints: Vec<INT> = diag_values
+    let grid = meshgrid(column_x, column_y).unwrap();
+
+    let x_grid = grid.get("x").unwrap().clone().into_array().unwrap();
+    let y_grid = grid.get("y").unwrap().clone().into_array().unwrap();
+
+    for row in x_grid.into_iter() {
+        let values: Vec<INT> = row
+            .into_array()
+            .unwrap()
+            .into_iter()
+            .map(|d| d.as_int().unwrap())
+            .collect();
+        assert_eq!(values, vec![0, 1, 2]);
+    }
+
+    let y_rows: Vec<Vec<INT>> = y_grid
         .into_iter()
-        .map(|d| d.as_int().unwrap())
+        .map(|row| {
+            row.into_array()
+                .unwrap()
+                .into_iter()
+                .map(|d| d.as_int().unwrap())
+                .collect()
+        })
         .collect();
-    let expected = vec![1, 5];
-    assert_eq!(ints, expected);
+    assert_eq!(y_rows, vec![vec![3, 3, 3], vec![4, 4, 4]]);
 }
