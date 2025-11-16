@@ -39,6 +39,12 @@ engine.register_global_module(SciPackage::new().as_shared_module());
 let value = engine.eval::<INT>("argmin([43, 42, -500])").unwrap();
 ```
 
+See the `examples` directory for more:
+
+- `matrix_inversion.rhai` demonstrates matrix inversion.
+- `download_and_regress.rhai` fetches data and performs linear regression.
+- `projectile_motion.rhai` uses trigonometry and array utilities to simulate a projectile trajectory.
+
 ### Features
 
 - **metadata** *(disabled)*: export function metadata; required for running doc-tests on Rhai examples.
