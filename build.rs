@@ -11,7 +11,7 @@ fn main() {
 
 #[cfg(feature = "metadata")]
 fn main() {
-    use rhai::{plugin::*, Engine};
+    use rhai::{plugin::*, Engine, Module};
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
     use std::io::Write;
@@ -85,7 +85,7 @@ fn main() {
         let function = function.clone();
         // Pull out basic info
         let name = function.name;
-        if !name.starts_with("anon") && !name.starts_with("_") && !name.starts_with("$CONSTANTS$"){
+        if !name.starts_with("anon") && !name.starts_with("_") && !name.starts_with("$CONSTANTS$") {
             let signature = function
                 .signature
                 .replace("Result<", "")

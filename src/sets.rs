@@ -2,7 +2,7 @@ use rhai::plugin::*;
 
 #[export_module]
 pub mod set_functions {
-    use rhai::{Array, Dynamic, EvalAltResult};
+    use rhai::{Array, EvalAltResult};
 
     /// Returns the set union of two arrays.
     /// ```typescript

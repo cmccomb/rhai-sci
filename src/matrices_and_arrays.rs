@@ -1,4 +1,3 @@
-use nalgebralib::{Dyn, OMatrix};
 use rhai::plugin::*;
 
 #[export_module]
@@ -81,7 +80,7 @@ pub mod matrix_functions {
     pub fn matrix_eigs_alt(matrix: &mut Array) -> Result<Map, Box<EvalAltResult>> {
         if_matrix_convert_to_vec_array_and_do(matrix, |matrix_as_vec| {
             // Convert vec_array to omatrix
-            let mut dm = DMatrix::from_fn(matrix_as_vec.len(), matrix_as_vec[0].len(), |i, j| {
+            let dm = DMatrix::from_fn(matrix_as_vec.len(), matrix_as_vec[0].len(), |i, j| {
                 if matrix_as_vec[0][0].is_float() {
                     matrix_as_vec[i][j].as_float().unwrap()
                 } else {
@@ -449,7 +448,7 @@ pub mod matrix_functions {
 
                     // Convert into vec of vec
                     let mut final_output = vec![];
-                    for series in x.get_columns() {
+                    for series in x.columns() {
                         let col: Vec<FLOAT> = series
                             .cast(&DataType::Float64)
                             .map_err(|err| {
