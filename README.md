@@ -45,6 +45,41 @@ See the `examples` directory for more:
 - `download_and_regress.rhai` fetches data and performs linear regression.
 - `projectile_motion.rhai` uses trigonometry and array utilities to simulate a projectile trajectory.
 
+## Matrix and Vector Conventions
+
+Rhai arrays remain the storage model. Use constructors when shape matters:
+
+```typescript
+let values = [1, 2, 3];        // plain Rhai list
+let x = vec([1, 2, 3]);        // column vector: [[1], [2], [3]]
+let c = col([1, 2, 3]);        // column vector: [[1], [2], [3]]
+let r = row([1, 2, 3]);        // row vector: [[1, 2, 3]]
+let A = mat([[1, 2], [3, 4]]); // validated matrix
+```
+
+For compact matrix literals, use strings with whitespace, commas, and semicolons:
+
+```typescript
+let A = mat("1 2; 3 4");
+let B = M("1, 2; 3, 4");
+let r = R("1 2 3");
+let c = C("1; 2; 3");
+```
+
+The short aliases keep linear algebra scripts readable:
+
+```typescript
+let A = mat("1 2; 3 4");
+let x = col([5, 6]);
+let y = row([7, 8]);
+
+let z = dot(A, x);
+let z2 = A.dot(x);
+let At = T(A);
+let C = hcat(A, x);
+let D = vcat(A, y);
+```
+
 ### Features
 
 - **metadata** *(disabled)*: export function metadata; required for running doc-tests on Rhai examples.
@@ -75,4 +110,3 @@ Licensed under either of
 - [Apache License, Version 2.0](LICENSE-APACHE.txt)
 
 at your option.
-

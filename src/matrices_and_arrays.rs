@@ -1,8 +1,135 @@
 use rhai::plugin::*;
 
+mod matrix_conventions {
+    use rhai::{Array, Dynamic, EvalAltResult, ImmutableString, Position, FLOAT, INT};
+
+    pub(super) fn vector_data_from_array(
+        values: Array,
+        constructor: &str,
+    ) -> Result<Array, Box<EvalAltResult>> {
+        if values.iter().all(is_numeric_scalar) {
+            return Ok(values);
+        }
+
+        let mut rows = Vec::with_capacity(values.len());
+        for row in values {
+            rows.push(row.into_array().map_err(|_| {
+                matrix_error(format!(
+                    "{constructor} expects a numeric list, row vector, or column vector"
+                ))
+            })?);
+        }
+
+        if rows.len() == 1 {
+            ensure_numeric_list(&rows[0], constructor)?;
+            return Ok(rows.remove(0));
+        }
+
+        if rows.iter().all(|row| {
+            row.len() == 1 && matches!(row.first(), Some(value) if is_numeric_scalar(value))
+        }) {
+            return Ok(rows.into_iter().map(|mut row| row.remove(0)).collect());
+        }
+
+        Err(matrix_error(format!(
+            "{constructor} expects a numeric list, row vector, or column vector"
+        )))
+    }
+
+    pub(super) fn parse_matrix_literal(
+        source: ImmutableString,
+    ) -> Result<Array, Box<EvalAltResult>> {
+        let mut matrix = Array::new();
+        let source = source.as_str();
+        if source.trim().is_empty() {
+            return Err(matrix_error("Matrix literal must not be empty"));
+        }
+
+        for row_text in source.split(';') {
+            let row_text = row_text.trim();
+            if row_text.is_empty() {
+                return Err(matrix_error("Matrix literal rows must not be empty"));
+            }
+
+            let normalized = row_text.replace(',', " ");
+            let mut row = Array::new();
+            for token in normalized.split_whitespace() {
+                row.push(parse_numeric_token(token)?);
+            }
+
+            if row.is_empty() {
+                return Err(matrix_error("Matrix literal rows must not be empty"));
+            }
+            matrix.push(Dynamic::from_array(row));
+        }
+
+        ensure_numeric_matrix(&matrix)?;
+        Ok(matrix)
+    }
+
+    fn parse_numeric_token(token: &str) -> Result<Dynamic, Box<EvalAltResult>> {
+        if !token.contains('.') && !token.contains('e') && !token.contains('E') {
+            if let Ok(value) = token.parse::<INT>() {
+                return Ok(Dynamic::from_int(value));
+            }
+        }
+
+        token
+            .parse::<FLOAT>()
+            .map(Dynamic::from_float)
+            .map_err(|_| matrix_error(format!("Invalid numeric literal `{token}`")))
+    }
+
+    pub(super) fn ensure_numeric_matrix(matrix: &Array) -> Result<(), Box<EvalAltResult>> {
+        if matrix.is_empty() {
+            return Err(matrix_error("mat expects at least one row"));
+        }
+
+        let mut cols = None;
+        for row in matrix {
+            let row = row
+                .clone()
+                .into_array()
+                .map_err(|_| matrix_error("mat expects nested row arrays"))?;
+
+            match cols {
+                Some(expected) if row.len() != expected => {
+                    return Err(matrix_error("Matrix rows must have equal length"));
+                }
+                None => cols = Some(row.len()),
+                _ => {}
+            }
+
+            ensure_numeric_list(&row, "mat")?;
+        }
+
+        Ok(())
+    }
+
+    fn ensure_numeric_list(values: &Array, constructor: &str) -> Result<(), Box<EvalAltResult>> {
+        if values.iter().all(is_numeric_scalar) {
+            Ok(())
+        } else {
+            Err(matrix_error(format!(
+                "{constructor} expects INT or FLOAT values"
+            )))
+        }
+    }
+
+    fn is_numeric_scalar(value: &Dynamic) -> bool {
+        value.is_int() || value.is_float()
+    }
+
+    fn matrix_error(message: impl Into<String>) -> Box<EvalAltResult> {
+        EvalAltResult::ErrorArithmetic(message.into(), Position::NONE).into()
+    }
+}
+
 #[export_module]
 pub mod matrix_functions {
-    #[cfg(feature = "nalgebra")]
+    use super::matrix_conventions::{
+        ensure_numeric_matrix, parse_matrix_literal, vector_data_from_array,
+    };
     use crate::matrix::{RhaiMatrix, RhaiVector};
     use crate::validation_functions::{is_column_vector, is_row_vector};
     use crate::{
@@ -13,8 +140,141 @@ pub mod matrix_functions {
     use crate::{if_matrices_and_compatible_convert_to_vec_array_and_do, FOIL};
     #[cfg(feature = "nalgebra")]
     use nalgebralib::DMatrix;
-    use rhai::{Array, Dynamic, EvalAltResult, Map, Position, FLOAT, INT};
+    use rhai::{Array, Dynamic, EvalAltResult, ImmutableString, Map, Position, FLOAT, INT};
     use std::collections::BTreeMap;
+
+    /// Create a column vector from a numeric list. This is the default vector convention.
+    /// ```typescript
+    /// let v = vec([1, 2, 3]);
+    /// assert_eq(v, [[1], [2], [3]]);
+    /// ```
+    /// ```typescript
+    /// let v = vec("1 2 3");
+    /// assert_eq(v, [[1], [2], [3]]);
+    /// ```
+    #[rhai_fn(name = "vec", return_raw)]
+    pub fn vec_from_array(values: Array) -> Result<Array, Box<EvalAltResult>> {
+        col_from_array(values)
+    }
+
+    /// Create a column vector from a compact numeric literal string.
+    #[rhai_fn(name = "vec", return_raw)]
+    pub fn vec_from_string(values: ImmutableString) -> Result<Array, Box<EvalAltResult>> {
+        col_from_string(values)
+    }
+
+    /// Create a row vector from a numeric list.
+    /// ```typescript
+    /// let r = row([1, 2, 3]);
+    /// assert_eq(r, [[1, 2, 3]]);
+    /// ```
+    /// ```typescript
+    /// let r = row("1 2 3");
+    /// assert_eq(r, [[1, 2, 3]]);
+    /// ```
+    #[rhai_fn(name = "row", return_raw)]
+    pub fn row_from_array(values: Array) -> Result<Array, Box<EvalAltResult>> {
+        Ok(RhaiMatrix::row_vector(vector_data_from_array(values, "row")?).to_array())
+    }
+
+    /// Create a row vector from a compact numeric literal string.
+    #[rhai_fn(name = "row", name = "R", return_raw)]
+    pub fn row_from_string(values: ImmutableString) -> Result<Array, Box<EvalAltResult>> {
+        row_from_array(parse_matrix_literal(values)?)
+    }
+
+    /// Create a column vector from a numeric list.
+    /// ```typescript
+    /// let c = col([1, 2, 3]);
+    /// assert_eq(c, [[1], [2], [3]]);
+    /// ```
+    /// ```typescript
+    /// let c = col("1; 2; 3");
+    /// assert_eq(c, [[1], [2], [3]]);
+    /// ```
+    #[rhai_fn(name = "col", return_raw)]
+    pub fn col_from_array(values: Array) -> Result<Array, Box<EvalAltResult>> {
+        Ok(RhaiMatrix::column_vector(vector_data_from_array(values, "col")?).to_array())
+    }
+
+    /// Create a column vector from a compact numeric literal string.
+    #[rhai_fn(name = "col", name = "C", return_raw)]
+    pub fn col_from_string(values: ImmutableString) -> Result<Array, Box<EvalAltResult>> {
+        col_from_array(parse_matrix_literal(values)?)
+    }
+
+    /// Validate and return a numeric matrix represented as nested row arrays.
+    /// ```typescript
+    /// let A = mat([[1, 2], [3, 4]]);
+    /// assert_eq(A, [[1, 2], [3, 4]]);
+    /// ```
+    /// ```typescript
+    /// let A = mat("1 2; 3 4");
+    /// assert_eq(A, [[1, 2], [3, 4]]);
+    /// ```
+    #[rhai_fn(name = "mat", return_raw)]
+    pub fn mat_from_array(matrix: Array) -> Result<Array, Box<EvalAltResult>> {
+        ensure_numeric_matrix(&matrix)?;
+        Ok(matrix)
+    }
+
+    /// Create a numeric matrix from a compact literal string.
+    #[rhai_fn(name = "mat", name = "M", return_raw)]
+    pub fn mat_from_string(matrix: ImmutableString) -> Result<Array, Box<EvalAltResult>> {
+        parse_matrix_literal(matrix)
+    }
+
+    /// Short alias for [`transpose`].
+    /// ```typescript
+    /// let c = T(row([1, 2, 3]));
+    /// assert_eq(c, [[1.0], [2.0], [3.0]]);
+    /// ```
+    #[cfg(feature = "nalgebra")]
+    #[rhai_fn(name = "T", return_raw)]
+    pub fn transpose_alias(matrix: Array) -> Result<Array, Box<EvalAltResult>> {
+        transpose_from_array(matrix)
+    }
+
+    /// Short alias for [`mtimes`].
+    /// ```typescript
+    /// let A = mat("1 2; 3 4");
+    /// let x = col([5, 6]);
+    /// assert_eq(dot(A, x), [[17.0], [39.0]]);
+    /// ```
+    /// ```typescript
+    /// let A = mat("1 2; 3 4");
+    /// let x = col([5, 6]);
+    /// assert_eq(A.dot(x), [[17.0], [39.0]]);
+    /// ```
+    #[cfg(feature = "nalgebra")]
+    #[rhai_fn(name = "dot", return_raw)]
+    pub fn dot(matrix1: Array, matrix2: Array) -> Result<Array, Box<EvalAltResult>> {
+        mtimes(matrix1, matrix2)
+    }
+
+    /// Short alias for [`horzcat`].
+    /// ```typescript
+    /// let A = mat("1 2; 3 4");
+    /// let x = col([5, 6]);
+    /// assert_eq(hcat(A, x), [[1.0, 2.0, 5.0], [3.0, 4.0, 6.0]]);
+    /// ```
+    #[cfg(feature = "nalgebra")]
+    #[rhai_fn(name = "hcat", return_raw)]
+    pub fn hcat(matrix1: Array, matrix2: Array) -> Result<Array, Box<EvalAltResult>> {
+        horzcat_from_array(matrix1, matrix2)
+    }
+
+    /// Short alias for [`vertcat`].
+    /// ```typescript
+    /// let A = mat("1 2; 3 4");
+    /// let y = row([5, 6]);
+    /// assert_eq(vcat(A, y), [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]);
+    /// ```
+    #[cfg(feature = "nalgebra")]
+    #[rhai_fn(name = "vcat", return_raw)]
+    pub fn vcat(matrix1: Array, matrix2: Array) -> Result<Array, Box<EvalAltResult>> {
+        vertcat_from_array(matrix1, matrix2)
+    }
 
     /// Calculates the inverse of a matrix. Fails if the matrix if not invertible, or if the
     /// elements of the matrix aren't FLOAT or INT.
