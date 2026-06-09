@@ -13,7 +13,7 @@
 Add the crate to your `Cargo.toml`:
 
 ```toml
-rhai-sci = "0.2.2"
+rhai-sci = "0.2.3"
 ```
 
 Evaluate a single line of Rhai code:

@@ -1,7 +1,7 @@
 use rhai::{Array, Dynamic, EvalAltResult, FLOAT, INT};
 use rhai_sci::matrix::RhaiMatrix;
 use rhai_sci::matrix_functions::{
-    diag, horzcat, matrix_size_by_reference, meshgrid, repmat, transpose, vertcat,
+    horzcat, matrix_size_by_reference, meshgrid, repmat, transpose, vertcat,
 };
 use rhai_sci::validation_functions::{is_column_vector, is_row_vector};
 

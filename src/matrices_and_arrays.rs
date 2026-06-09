@@ -409,7 +409,7 @@ pub mod matrix_functions {
 
                     // Convert into vec of vec
                     let mut final_output = vec![];
-                    for series in x.get_columns() {
+                    for series in x.columns() {
                         let col: Vec<FLOAT> = series
                             .cast(&DataType::Float64)
                             .map_err(|err| {
@@ -1073,14 +1073,14 @@ pub mod matrix_functions {
     /// let g = meshgrid(x, y);
     /// assert_eq(g, #{"x": [[1, 2],
     ///                      [1, 2]],
-    ///                "y": [[3.0, 3.0],
-    ///                      [4.0, 4.0]]});
+    ///                "y": [[3, 3],
+    ///                      [4, 4]]});
     ///
     /// let x = [0, 1, 2];
     /// let y = [10];
     /// let g = meshgrid(x, y);
     /// assert_eq(g, #{"x": [[0, 1, 2]],
-    ///                "y": [[10.0, 10.0, 10.0]]});
+    ///                "y": [[10, 10, 10]]});
     /// ```
     #[rhai_fn(name = "meshgrid", return_raw)]
     pub fn meshgrid(x: Array, y: Array) -> Result<Map, Box<EvalAltResult>> {

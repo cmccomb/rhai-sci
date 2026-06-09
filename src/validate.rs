@@ -3,7 +3,7 @@ use rhai::plugin::*;
 #[export_module]
 pub mod validation_functions {
     use crate::matrix::RhaiMatrix;
-    use rhai::{Array, Dynamic};
+    use rhai::Array;
 
     /// Tests whether the input is a simple list or a numeric vector.
     /// ```typescript
