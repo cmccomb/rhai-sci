@@ -66,19 +66,32 @@ fn aliases_read_like_linear_algebra() {
 
 #[test]
 fn matrix_constructor_rejects_ragged_literals() {
-    let err = eval_array("mat(\"1 2; 3\")").unwrap_err();
-    match err.as_ref() {
-        EvalAltResult::ErrorArithmetic(message, _) => {
-            assert!(message.contains("equal length"));
-        }
-        other => panic!("unexpected error: {other:?}"),
-    }
+    assert_error_contains("mat(\"1 2; 3\")", "equal length");
+}
+
+#[test]
+fn matrix_constructor_rejects_invalid_arrays() {
+    assert_error_contains("mat([[1, 2], [3]])", "equal length");
+    assert_error_contains("mat([[1, \"x\"]])", "INT or FLOAT");
 }
 
 fn eval_array(script: &str) -> Result<Array, Box<EvalAltResult>> {
     let mut engine = Engine::new();
     engine.register_global_module(SciPackage::new().as_shared_module());
     engine.eval::<Array>(script)
+}
+
+fn assert_error_contains(script: &str, expected: &str) {
+    let err = eval_array(script).unwrap_err();
+    match err.as_ref() {
+        EvalAltResult::ErrorArithmetic(message, _) => {
+            assert!(
+                message.contains(expected),
+                "expected error message `{message}` to contain `{expected}`"
+            );
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
 }
 
 fn assert_matrix_eq(actual: Array, expected: &[&[f64]]) {

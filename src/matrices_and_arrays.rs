@@ -158,6 +158,10 @@ pub mod matrix_functions {
     }
 
     /// Create a column vector from a compact numeric literal string.
+    /// ```typescript
+    /// let v = vec("1; 2; 3");
+    /// assert_eq(v, [[1], [2], [3]]);
+    /// ```
     #[rhai_fn(name = "vec", return_raw)]
     pub fn vec_from_string(values: ImmutableString) -> Result<Array, Box<EvalAltResult>> {
         col_from_string(values)
@@ -178,6 +182,10 @@ pub mod matrix_functions {
     }
 
     /// Create a row vector from a compact numeric literal string.
+    /// ```typescript
+    /// let r = R("1 2 3");
+    /// assert_eq(r, [[1, 2, 3]]);
+    /// ```
     #[rhai_fn(name = "row", name = "R", return_raw)]
     pub fn row_from_string(values: ImmutableString) -> Result<Array, Box<EvalAltResult>> {
         row_from_array(parse_matrix_literal(values)?)
@@ -198,6 +206,10 @@ pub mod matrix_functions {
     }
 
     /// Create a column vector from a compact numeric literal string.
+    /// ```typescript
+    /// let c = C("1; 2; 3");
+    /// assert_eq(c, [[1], [2], [3]]);
+    /// ```
     #[rhai_fn(name = "col", name = "C", return_raw)]
     pub fn col_from_string(values: ImmutableString) -> Result<Array, Box<EvalAltResult>> {
         col_from_array(parse_matrix_literal(values)?)
@@ -219,6 +231,10 @@ pub mod matrix_functions {
     }
 
     /// Create a numeric matrix from a compact literal string.
+    /// ```typescript
+    /// let A = M("1, 2; 3, 4");
+    /// assert_eq(A, [[1, 2], [3, 4]]);
+    /// ```
     #[rhai_fn(name = "mat", name = "M", return_raw)]
     pub fn mat_from_string(matrix: ImmutableString) -> Result<Array, Box<EvalAltResult>> {
         parse_matrix_literal(matrix)
