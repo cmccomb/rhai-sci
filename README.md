@@ -44,6 +44,7 @@ See the `examples` directory for more:
 - `matrix_inversion.rhai` demonstrates matrix inversion.
 - `download_and_regress.rhai` fetches data and performs linear regression.
 - `projectile_motion.rhai` uses trigonometry and array utilities to simulate a projectile trajectory.
+- `neural_network_backprop.rhai` trains a tiny neural network on XOR with explicit backpropagation.
 
 ## Matrix and Vector Conventions
 
