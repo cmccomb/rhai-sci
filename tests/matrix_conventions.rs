@@ -73,6 +73,14 @@ fn matrix_constructor_rejects_ragged_literals() {
 fn matrix_constructor_rejects_invalid_arrays() {
     assert_error_contains("mat([[1, 2], [3]])", "equal length");
     assert_error_contains("mat([[1, \"x\"]])", "INT or FLOAT");
+    assert_error_contains("mat([[]])", "at least one value");
+}
+
+#[test]
+fn vector_constructors_reject_empty_arrays() {
+    assert_error_contains("vec([])", "at least one value");
+    assert_error_contains("row([])", "at least one value");
+    assert_error_contains("col([])", "at least one value");
 }
 
 fn eval_array(script: &str) -> Result<Array, Box<EvalAltResult>> {

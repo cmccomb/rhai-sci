@@ -7,6 +7,10 @@ mod matrix_conventions {
         values: Array,
         constructor: &str,
     ) -> Result<Array, Box<EvalAltResult>> {
+        if values.is_empty() {
+            return Err(empty_values_error(constructor));
+        }
+
         if values.iter().all(is_numeric_scalar) {
             return Ok(values);
         }
@@ -107,6 +111,10 @@ mod matrix_conventions {
     }
 
     fn ensure_numeric_list(values: &Array, constructor: &str) -> Result<(), Box<EvalAltResult>> {
+        if values.is_empty() {
+            return Err(empty_values_error(constructor));
+        }
+
         if values.iter().all(is_numeric_scalar) {
             Ok(())
         } else {
@@ -118,6 +126,10 @@ mod matrix_conventions {
 
     fn is_numeric_scalar(value: &Dynamic) -> bool {
         value.is_int() || value.is_float()
+    }
+
+    fn empty_values_error(constructor: &str) -> Box<EvalAltResult> {
+        matrix_error(format!("{constructor} expects at least one value"))
     }
 
     fn matrix_error(message: impl Into<String>) -> Box<EvalAltResult> {
