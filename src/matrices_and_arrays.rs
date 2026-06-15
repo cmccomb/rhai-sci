@@ -257,6 +257,10 @@ pub mod matrix_functions {
     /// let c = T(row([1, 2, 3]));
     /// assert_eq(c, [[1.0], [2.0], [3.0]]);
     /// ```
+    /// ```typescript
+    /// let r = T(vec([1, 2, 3]));
+    /// assert_eq(r, [[1.0, 2.0, 3.0]]);
+    /// ```
     #[cfg(feature = "nalgebra")]
     #[rhai_fn(name = "T", return_raw)]
     pub fn transpose_alias(matrix: Array) -> Result<Array, Box<EvalAltResult>> {
@@ -540,11 +544,12 @@ pub mod matrix_functions {
     /// ```
     #[rhai_fn(name = "transpose", return_raw)]
     pub fn transpose(matrix: RhaiMatrix) -> Result<RhaiMatrix, Box<EvalAltResult>> {
-        let oriented = matrix
-            .as_row()
-            .or_else(|| matrix.as_column())
-            .unwrap_or(matrix);
-        oriented.transpose()
+        let mut raw = matrix.clone().to_array();
+        if !raw.is_empty() && matrix_size_by_reference(&mut raw).len() == 1 {
+            return RhaiMatrix::row_vector(raw).transpose();
+        }
+
+        matrix.transpose()
     }
 
     /// Transpose an array by first converting it to a [`RhaiMatrix`].

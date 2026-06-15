@@ -54,6 +54,11 @@ fn aliases_read_like_linear_algebra() {
     assert_matrix_eq(method_product, &[&[17.0], &[39.0]]);
 
     assert_matrix_eq(eval_array("T(row([1, 2]))").unwrap(), &[&[1.0], &[2.0]]);
+    assert_matrix_eq(eval_array("T(vec([1, 2]))").unwrap(), &[&[1.0, 2.0]]);
+    assert_matrix_eq(
+        eval_array("dot(T(vec([1, 2])), vec([3, 4]))").unwrap(),
+        &[&[11.0]],
+    );
     assert_matrix_eq(
         eval_array("hcat(mat(\"1 2; 3 4\"), col([5, 6]))").unwrap(),
         &[&[1.0, 2.0, 5.0], &[3.0, 4.0, 6.0]],

@@ -18,6 +18,22 @@ fn transpose_orients_row_vector() {
 }
 
 #[test]
+fn transpose_orients_column_vector() {
+    let data: Array = vec![
+        Dynamic::from_int(1),
+        Dynamic::from_int(2),
+        Dynamic::from_int(3),
+    ];
+    let column = RhaiMatrix::column_vector(data);
+    let mut result = transpose(column).unwrap().to_array();
+    assert!(is_row_vector(&mut result));
+
+    let row = result[0].clone().into_array().unwrap();
+    let values: Vec<FLOAT> = row.into_iter().map(|d| d.as_float().unwrap()).collect();
+    assert_eq!(values, vec![1.0, 2.0, 3.0]);
+}
+
+#[test]
 fn horzcat_concatenates_rows() {
     let a: Array = vec![Dynamic::from_int(1), Dynamic::from_int(2)];
     let b: Array = vec![Dynamic::from_int(3), Dynamic::from_int(4)];

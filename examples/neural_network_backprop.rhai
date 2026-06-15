@@ -78,16 +78,6 @@ fn hadamard(A, B) {
     out
 }
 
-fn column_to_row(A) {
-    let values = [];
-
-    for row in A {
-        values.push(row[0]);
-    }
-
-    row(values)
-}
-
 fn sum_squares(A) {
     let total = 0.0;
 
@@ -174,10 +164,8 @@ for epoch in 0..epochs {
         let hidden_slope = sigmoid_prime_from_activation(step.hidden);
         let hidden_delta = hadamard(hidden_error, hidden_slope);
 
-        let hidden_with_bias_row = column_to_row(step.hidden_with_bias);
-        let x_with_bias_row = column_to_row(step.x_with_bias);
-        let grad_W2 = dot(output_delta, hidden_with_bias_row);
-        let grad_W1 = dot(hidden_delta, x_with_bias_row);
+        let grad_W2 = dot(output_delta, T(step.hidden_with_bias));
+        let grad_W1 = dot(hidden_delta, T(step.x_with_bias));
 
         W2 = sub_matrix(W2, scale_matrix(grad_W2, learning_rate));
         W1 = sub_matrix(W1, scale_matrix(grad_W1, learning_rate));
